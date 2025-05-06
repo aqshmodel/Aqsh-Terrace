@@ -32,6 +32,8 @@ class UserResource extends JsonResource
             'social_links' => $this->social_links ?? [], // null なら空配列
             'experienced_industries' => $this->experienced_industries ?? [], // null なら空配列
             'experienced_company_types' => $this->experienced_company_types ?? [], // null なら空配列
+            'current_company_name' => $this->current_company_name ?? [], // null なら空配列
+            'current_company_url' => $this->current_company_url ?? [], // null なら空配列
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
 

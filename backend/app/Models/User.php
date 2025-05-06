@@ -1,5 +1,5 @@
 <?php
-
+///Users/tsukadatakahiro/Python/app/aqsh-terrace/backend/app/Models/User.php
 namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail; // 必要に応じて
@@ -100,6 +100,8 @@ class User extends Authenticatable // implements MustVerifyEmail // 必要なら
         'social_links',         // JSON or TEXT
         'experienced_industries', // JSON or TEXT
         'experienced_company_types', // JSON or TEXT
+        'current_company_name',
+        'current_company_url',
     ];
 
     /**

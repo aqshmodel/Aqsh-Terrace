@@ -20,6 +20,8 @@ return [
         'it_data_center' => 'データセンター/ホスティング',
         'it_consulting' => 'ITコンサルティング',
         'it_security' => '情報セキュリティ',
+        'it_communication' => 'IT/通信',
+        'web_service' => 'Webサービス',
         // インターネット・広告・メディア
         'internet_portal' => 'ポータルサイト/検索エンジン',
         'internet_ec' => 'EC/ネット通販',

@@ -1,4 +1,4 @@
-// src/types/user.ts (または src/types/profile.ts)
+// src/types/user.ts 
 
 import type { Post } from './post'; // 投稿の型定義をインポート
 
@@ -71,6 +71,8 @@ export interface UserProfile {
   social_links: Record<string, string>; // { github: "url", ... }
   experienced_industries: string[]; // ["it_communication", ...]
   experienced_company_types: string[]; // ["startup", ...]
+  current_company_name: string | null;
+　current_company_url: string | null;
   created_at: string;
   updated_at: string;
 

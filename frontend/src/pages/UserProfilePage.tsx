@@ -1,63 +1,59 @@
-// /Users/tsukadatakahiro/Python/app/aqsh-net/frontend/src/pages/UserProfilePage.tsx
+// frontend/src/pages/UserProfilePage.tsx
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import {
     UserProfile,
-    PaginatedUserPostsResponse, // UserProfilePage ではこちらを使用
-    Experience,
-    Education,
+    PaginatedUserPostsResponse,
     UserSkill,
-    PortfolioItem
+    // Experience, Education, PortfolioItem はここでは直接使わないが、UserProfile 型内で参照されている
 } from '@/types/user'; // 型定義をインポート
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+// import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"; // 未使用
+// import { Dialog, DialogTrigger } from "@/components/ui/dialog"; // 未使用
+// import { AlertDialog, AlertDialogTrigger } from "@/components/ui/alert-dialog"; // 未使用
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Dialog, DialogTrigger } from "@/components/ui/dialog";
-import { AlertDialog, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import {
-    ExternalLink, MapPin, Mail, Edit, Loader2, Github, Twitter, Linkedin, Link as LinkIcon,
+    ExternalLink, MapPin, Mail, Edit, Loader2, Github, Twitter, Linkedin, Facebook, Instagram, // ★ Facebook, Instagram 追加
     Building, GraduationCap, UserCheck, UserPlus, Briefcase, Lightbulb, BookOpen, Star,
     Calendar, MessageSquare, Terminal, MoreHorizontal, User as UserIcon,
-    ChevronDown, ChevronUp // UserPlus, UserCheck はフォロー機能で使われる想定
+    Link as LinkIcon // ★ LinkIcon 追加 (会社URL用)
+    // ChevronDown, ChevronUp // 未使用
 } from 'lucide-react';
 import { formatRelativeTime } from '@/lib/utils';
 import { PostList } from '@/components/PostList'; // 名前付きインポート
 import useAuthStore from '@/stores/authStore';
 import { useState, useEffect, useCallback } from 'react'; // useCallback をインポート
-// import { Helmet } from 'react-helmet-async'; // コメントアウト
-import { PostEditDialog } from '@/components/PostEditDialog';
-import { PostDeleteAlert } from '@/components/PostDeleteAlert';
-import type { Post as PostType } from '@/types/post'; // Post 型もインポート
+// import { Helmet } from 'react-helmet-async'; // 未使用
+// import { PostEditDialog } from '@/components/PostEditDialog'; // 未使用
+// import { PostDeleteAlert } from '@/components/PostDeleteAlert'; // 未使用
+// import type { Post as PostType } from '@/types/post'; // 未使用
 
 // --- API 関数 ---
 const fetchUserProfile = async (userId: string): Promise<UserProfile> => {
     const response = await apiClient.get<{ data: UserProfile }>(`/api/users/${userId}`);
+    // データ存在チェックを修正 (response.data が存在し、その中の data プロパティが存在するか)
     if (!response.data || !response.data.data) { throw new Error('User data not found in response'); }
     return response.data.data;
 };
+
 const fetchUserPosts = async (userId: string, page = 1): Promise<PaginatedUserPostsResponse> => {
-    // ユーザー固有の投稿を取得するエンドポイントを呼び出す
     const response = await apiClient.get<PaginatedUserPostsResponse>(`/api/users/${userId}/posts?page=${page}`);
     return response.data;
 };
-// フォローAPI (is_following は UserProfile に含まれる想定)
+
 const followUser = async (userId: number) => {
     await apiClient.post(`/api/users/${userId}/follow`);
 };
-// アンフォローAPI
+
 const unfollowUser = async (userId: number) => {
     await apiClient.delete(`/api/users/${userId}/follow`);
 };
+
 // メタデータ取得API (プロフィール表示用)
 interface Metadata {
     industries: Record<string, string>;
@@ -77,65 +73,59 @@ function UserProfilePage() {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { user: loggedInUser, isLoggedIn } = useAuthStore();
-    // 投稿リストの現在のページ番号を管理する state
     const [postPage, setPostPage] = useState(1);
 
-    // メタデータの取得 (スキルや業界などの表示用)
+    // メタデータの取得
     const { data: metadata } = useQuery<Metadata, Error>({
         queryKey: ['metadata'],
         queryFn: fetchMetadata,
-        staleTime: Infinity, // 基本的に変わらないデータなのでキャッシュ時間を無限に
+        staleTime: Infinity,
         gcTime: Infinity,
-        refetchOnWindowFocus: false, // ウィンドウフォーカスで再取得しない
+        refetchOnWindowFocus: false,
     });
 
-    // userId が URL に存在しない場合は 404 へ
+    // userId が URL に存在しない場合
     if (!userId) {
         navigate('/404');
         return null;
     }
-    // URL の userId を数値に変換 (API 呼び出し用)
     const parsedUserId = parseInt(userId, 10);
 
     // ユーザープロフィールの取得
     const { data: profile, isLoading, error } = useQuery<UserProfile, Error>({
-        queryKey: ['user', userId], // ユーザーIDごとにキャッシュ
+        queryKey: ['user', userId],
         queryFn: () => fetchUserProfile(userId),
-        enabled: !!userId, // userId が確定してから実行
-        staleTime: 5 * 60 * 1000, // 5分間キャッシュを新鮮とみなす
+        enabled: !!userId,
+        staleTime: 5 * 60 * 1000,
     });
 
-    // ユーザー投稿リストのクエリキー (ユーザーIDとページ番号に依存)
+    // ユーザー投稿リストのクエリキー
     const userPostsQueryKey = ['userPosts', userId, postPage];
 
     // ユーザー投稿リストの取得
     const { data: postsData, isLoading: isLoadingPosts, isFetching: isFetchingPosts, isError: isErrorPosts, error: errorPosts } = useQuery<PaginatedUserPostsResponse, Error>({
-        queryKey: userPostsQueryKey, // 上で定義したキー
-        queryFn: () => fetchUserPosts(userId, postPage), // API 関数呼び出し
-        enabled: !!userId, // userId が確定してから実行
-        placeholderData: keepPreviousData, // ページ遷移時に前のデータを表示し続ける
-        staleTime: 1 * 60 * 1000, // 1分間キャッシュを新鮮とみなす
+        queryKey: userPostsQueryKey,
+        queryFn: () => fetchUserPosts(userId, postPage),
+        enabled: !!userId,
+        placeholderData: keepPreviousData,
+        staleTime: 1 * 60 * 1000,
     });
 
     // フォロー処理の Mutation
     const followMutation = useMutation<void, Error, void, unknown>({
         mutationFn: () => followUser(parsedUserId),
         onSuccess: () => {
-            // フォロー成功時にユーザープロファイルキャッシュを楽観的更新
             queryClient.setQueryData<UserProfile>(['user', userId], (oldData) => {
                 if (!oldData) return oldData;
-                // is_following を true に、フォロワー数を +1
                 return { ...oldData, is_following: true, followers_count: (oldData.followers_count ?? 0) + 1 };
             });
-            // フォロー/フォロワーリスト関連のキャッシュを無効化 (任意)
+            // フォロー/フォロワーリスト関連のキャッシュを無効化
             queryClient.invalidateQueries({ queryKey: ['followers', userId] });
             queryClient.invalidateQueries({ queryKey: ['followings', loggedInUser?.id] });
         },
         onError: (err) => {
             console.error("フォローエラー:", err);
-            // エラー時はプロファイルキャッシュを無効化してサーバーと同期
             queryClient.invalidateQueries({ queryKey: ['user', userId] });
-            // エラー通知 (例: toast)
         }
     });
 
@@ -143,21 +133,17 @@ function UserProfilePage() {
     const unfollowMutation = useMutation<void, Error, void, unknown>({
         mutationFn: () => unfollowUser(parsedUserId),
         onSuccess: () => {
-             // アンフォロー成功時にユーザープロファイルキャッシュを楽観的更新
              queryClient.setQueryData<UserProfile>(['user', userId], (oldData) => {
                 if (!oldData) return oldData;
-                // is_following を false に、フォロワー数を -1 (0未満にならないように)
                 return { ...oldData, is_following: false, followers_count: Math.max(0, (oldData.followers_count ?? 0) - 1) };
             });
-            // フォロー/フォロワーリスト関連のキャッシュを無効化 (任意)
+            // フォロー/フォロワーリスト関連のキャッシュを無効化
             queryClient.invalidateQueries({ queryKey: ['followers', userId] });
             queryClient.invalidateQueries({ queryKey: ['followings', loggedInUser?.id] });
         },
         onError: (err) => {
             console.error("アンフォローエラー:", err);
-            // エラー時はプロファイルキャッシュを無効化してサーバーと同期
             queryClient.invalidateQueries({ queryKey: ['user', userId] });
-            // エラー通知 (例: toast)
         }
     });
 
@@ -167,17 +153,15 @@ function UserProfilePage() {
         if (profile?.name) {
             document.title = `${profile.name}さんのプロフィール | コミュニティプラットフォーム`;
         }
-        // コンポーネントアンマウント時にタイトルを元に戻す
         return () => {
            document.title = originalTitle;
         };
-    }, [profile?.name]); // profile.name が変わったら実行
+    }, [profile?.name]);
 
-    // いいね成功時のコールバック (PostList から呼ばれる)
+    // いいね成功時のコールバック
     const handleLikeToggleSuccess = useCallback((postId: number, newLikedStatus: boolean, newLikesCount: number) => {
-        console.log(`[UserProfilePage] Received like success for post ${postId}. Updating cache...`);
-        // ユーザー投稿リストのキャッシュを更新
-        queryClient.setQueryData<PaginatedUserPostsResponse>(userPostsQueryKey, (oldData: PaginatedUserPostsResponse | undefined) => {
+        // console.log(`[UserProfilePage] Received like success for post ${postId}. Updating cache...`);
+        queryClient.setQueryData<PaginatedUserPostsResponse>(userPostsQueryKey, (oldData) => {
             if (!oldData) return oldData;
             const newData = oldData.data.map(post => {
                 if (post.id === postId) {
@@ -187,15 +171,13 @@ function UserProfilePage() {
             });
             return { ...oldData, data: newData };
         });
-    }, [queryClient, userPostsQueryKey]); // 依存配列
+    }, [queryClient, userPostsQueryKey]);
 
-    // いいね失敗時のコールバック (PostList から呼ばれる)
+    // いいね失敗時のコールバック
     const handleLikeToggleError = useCallback((error: Error, postId: number) => {
         console.error(`[UserProfilePage] Received like error for post ${postId}:`, error);
-        // エラー時はユーザー投稿リストのキャッシュを無効化して再取得を促す
         queryClient.invalidateQueries({ queryKey: ['userPosts', userId] });
-        // エラー通知 (例: toast)
-    }, [queryClient, userId]); // 依存配列
+    }, [queryClient, userId]);
 
     // --- ローディング・エラー表示 (プロファイル取得) ---
     if (isLoading) {
@@ -216,24 +198,31 @@ function UserProfilePage() {
     }
 
     // --- レンダリング補助関数 ---
-    const isOwner = profile.is_owner; // ログインユーザー自身のプロフィールか
+    const isOwner = profile.is_owner;
 
-    // ソーシャルリンク表示
+    // ★ ソーシャルリンク表示関数を更新
     const renderSocialLinks = () => {
-        // ... (実装は変更なし)
+         // social_links が null or undefined or 空オブジェクトの場合
          if (!profile.social_links || Object.keys(profile.social_links).length === 0) return null;
+
          const links = [];
+         // 各キーが存在し、かつURLが空でない場合のみリンクを追加
          if (profile.social_links?.github) links.push({ icon: Github, url: profile.social_links.github, label: 'GitHub' });
          if (profile.social_links?.twitter) links.push({ icon: Twitter, url: profile.social_links.twitter, label: 'Twitter/X' });
          if (profile.social_links?.linkedin) links.push({ icon: Linkedin, url: profile.social_links.linkedin, label: 'LinkedIn' });
-         if (links.length === 0) return null;
+         // ★ Facebook と Instagram を追加
+         if (profile.social_links?.facebook) links.push({ icon: Facebook, url: profile.social_links.facebook, label: 'Facebook' });
+         if (profile.social_links?.instagram) links.push({ icon: Instagram, url: profile.social_links.instagram, label: 'Instagram' });
+
+         if (links.length === 0) return null; // 有効なリンクがない場合は何も表示しない
+
          return (
-             <div className="flex flex-wrap gap-x-4 gap-y-2 mt-2">
+             <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3"> {/* mt-2からmt-3へ調整 */}
                  {links.map((link) => (
                      <a key={link.label} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">
-                         <link.icon className="h-4 w-4 mr-1" />
+                         <link.icon className="h-4 w-4 mr-1 flex-shrink-0" /> {/* アイコンサイズ調整 */}
                          {link.label}
-                         <ExternalLink className="h-3 w-3 ml-1 opacity-70" />
+                         <ExternalLink className="h-3 w-3 ml-0.5 opacity-70" /> {/* サイズ、マージン調整 */}
                      </a>
                  ))}
              </div>
@@ -242,7 +231,6 @@ function UserProfilePage() {
 
     // 経験業界などのラベル表示
     const renderLabelsFromArray = (keys: string[] | undefined | null, configKey: keyof Metadata) => {
-        // ... (実装は変更なし)
         if (!keys || keys.length === 0 || !metadata) return null;
         const labelMap = metadata[configKey];
         if (!labelMap) return null;
@@ -255,7 +243,6 @@ function UserProfilePage() {
 
     // スキル表示 (タイプ別グループ化)
     const groupSkillsByType = (skills: UserSkill[] | undefined | null): Record<string, UserSkill[]> => {
-        // ... (実装は変更なし)
         if (!skills) return {};
         return skills.reduce((acc, skill) => {
             const typeKey = skill.type || 'その他';
@@ -281,55 +268,76 @@ function UserProfilePage() {
                 <div className="flex-1">
                     <h1 className="text-3xl font-bold">{profile.name}</h1>
                     {profile.headline && <p className="text-lg text-muted-foreground mt-1">{profile.headline}</p>}
+
+                    {/* ★ 所属企業表示を追加 */}
+                    {profile.current_company_name && (
+                        <div className="flex items-center text-sm text-muted-foreground mt-3">
+                            <Building className="h-4 w-4 mr-1.5 flex-shrink-0" />
+                            <span>{profile.current_company_name}</span>
+                            {profile.current_company_url && (
+                                <a href={profile.current_company_url} target="_blank" rel="noopener noreferrer" className="ml-2 flex items-center hover:text-primary hover:underline">
+                                    <LinkIcon className="h-3 w-3 mr-0.5" />
+                                    <span>Webサイト</span>
+                                    <ExternalLink className="h-3 w-3 ml-0.5 opacity-70" />
+                                </a>
+                            )}
+                        </div>
+                    )}
+
                     <div className="flex items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mt-3 flex-wrap">
                         {profile.location && <span className="flex items-center"><MapPin className="h-4 w-4 mr-1 flex-shrink-0" /> {profile.location}</span>}
                         <span className="flex items-center"><Calendar className="h-4 w-4 mr-1 flex-shrink-0" /> 登録日: {formatRelativeTime(profile.created_at)}</span>
                     </div>
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground mt-2">
-                        {profile.experienced_industries && profile.experienced_industries.length > 0 && (
-                             <div className="flex items-center"><Briefcase className="h-4 w-4 mr-1 flex-shrink-0" /> 経験業界: {renderLabelsFromArray(profile.experienced_industries, 'industries')}</div>
-                        )}
-                        {profile.experienced_company_types && profile.experienced_company_types.length > 0 && (
-                             <div className="flex items-center"><Building className="h-4 w-4 mr-1 flex-shrink-0" /> 経験企業タイプ: {renderLabelsFromArray(profile.experienced_company_types, 'company_types')}</div>
-                        )}
-                    </div>
-                    {renderSocialLinks()} {/* ソーシャルリンクを表示 */}
+
+                    {/* 経験業界・企業タイプ */}
+                    {(profile.experienced_industries && profile.experienced_industries.length > 0 ||
+                      profile.experienced_company_types && profile.experienced_company_types.length > 0) && (
+                        <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground mt-3">
+                            {profile.experienced_industries && profile.experienced_industries.length > 0 && (
+                                <div className="flex items-start"><Briefcase className="h-4 w-4 mr-1 flex-shrink-0 mt-0.5" /> <span className="mr-1">経験業界:</span> <div>{renderLabelsFromArray(profile.experienced_industries, 'industries')}</div></div>
+                            )}
+                            {profile.experienced_company_types && profile.experienced_company_types.length > 0 && (
+                                <div className="flex items-start"><Building className="h-4 w-4 mr-1 flex-shrink-0 mt-0.5" /> <span className="mr-1">経験企業タイプ:</span> <div>{renderLabelsFromArray(profile.experienced_company_types, 'company_types')}</div></div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* ★ ソーシャルリンク表示関数を呼び出し */}
+                    {renderSocialLinks()}
                 </div>
 
                 {/* アクションボタン (編集/フォロー/アンフォロー) */}
                 <div className="flex gap-2 mt-4 w-full md:w-auto md:mt-0 md:flex-col lg:flex-row flex-shrink-0">
-                    {isOwner && ( // 自分のプロフィールの場合: 編集ボタン
+                    {isOwner && (
                         <Button variant="outline" className="w-full md:w-auto" asChild>
                             <Link to="/profile/edit">
                                 <Edit className="h-4 w-4 mr-2" /> プロフィール編集
                             </Link>
                         </Button>
                     )}
-                    {!isOwner && isLoggedIn && ( // 他人のプロフィールでログイン中: フォロー/アンフォローボタン
-                        profile.is_following !== undefined && ( // フォロー状態がある場合
-                            profile.is_following ? ( // フォロー中の場合
-                                <Button
-                                    variant="outline"
-                                    className="w-full md:w-auto"
-                                    onClick={() => unfollowMutation.mutate()} // アンフォロー実行
-                                    disabled={unfollowMutation.isPending || followMutation.isPending}
-                                >
-                                    {unfollowMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserCheck className="mr-2 h-4 w-4" />}
-                                    フォロー中
-                                </Button>
-                            ) : ( // フォローしていない場合
-                                <Button
-                                    className="w-full md:w-auto"
-                                    onClick={() => followMutation.mutate()} // フォロー実行
-                                    disabled={followMutation.isPending || unfollowMutation.isPending}
-                                >
-                                    {followMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserPlus className="mr-2 h-4 w-4" />}
-                                    フォローする
-                                </Button>
-                            )
+                    {!isOwner && isLoggedIn && profile.is_following !== undefined && (
+                        profile.is_following ? (
+                            <Button
+                                variant="outline"
+                                className="w-full md:w-auto"
+                                onClick={() => unfollowMutation.mutate()}
+                                disabled={unfollowMutation.isPending || followMutation.isPending}
+                            >
+                                {unfollowMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserCheck className="mr-2 h-4 w-4" />}
+                                フォロー中
+                            </Button>
+                        ) : (
+                            <Button
+                                className="w-full md:w-auto"
+                                onClick={() => followMutation.mutate()}
+                                disabled={followMutation.isPending || unfollowMutation.isPending}
+                            >
+                                {followMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserPlus className="mr-2 h-4 w-4" />}
+                                フォローする
+                            </Button>
                         )
                     )}
-                    {!isLoggedIn && !isOwner && ( // 他人のプロフィールで未ログイン: フォローボタン(無効)
+                    {!isLoggedIn && !isOwner && (
                         <Button disabled className="w-full md:w-auto">
                            <UserPlus className="mr-2 h-4 w-4" /> フォローする (ログインが必要です)
                         </Button>
@@ -500,23 +508,16 @@ function UserProfilePage() {
                 {/* 投稿タブ */}
                 <TabsContent value="posts">
                      <h2 className="text-xl font-semibold mb-4">{profile.name}さんの投稿</h2>
-                     {/*
-                       PostList コンポーネントを呼び出し。
-                       ページネーションに必要な postsData (links, meta を含む) と
-                       ページ状態を更新する setPage (setPostPage) を渡しているため、
-                       PostList 内部でページネーション UI が表示され、機能する想定。
-                     */
-                     }
                     <PostList
-                        postsData={postsData}                   // 取得した投稿データ (ページネーション情報を含む)
-                        isLoading={isLoadingPosts && !isFetchingPosts} // 初回ロード中フラグ
-                        isFetching={isFetchingPosts}            // データ取得中フラグ (ページ遷移時など)
-                        isError={isErrorPosts}                  // エラーフラグ
-                        error={errorPosts}                      // エラーオブジェクト
-                        setPage={setPostPage}                   // ページ更新関数 (これを PostList 内のボタンが呼び出す)
-                        currentUser={loggedInUser ?? undefined} // ログインユーザー情報
-                        onLikeToggleSuccess={handleLikeToggleSuccess} // いいね成功コールバック
-                        onLikeToggleError={handleLikeToggleError}     // いいね失敗コールバック
+                        postsData={postsData}
+                        isLoading={isLoadingPosts && !isFetchingPosts}
+                        isFetching={isFetchingPosts}
+                        isError={isErrorPosts}
+                        error={errorPosts}
+                        setPage={setPostPage}
+                        currentUser={loggedInUser ?? undefined}
+                        onLikeToggleSuccess={handleLikeToggleSuccess}
+                        onLikeToggleError={handleLikeToggleError}
                     />
                  </TabsContent>
             </Tabs>

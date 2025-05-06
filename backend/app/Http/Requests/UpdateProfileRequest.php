@@ -15,7 +15,6 @@ class UpdateProfileRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        // return Auth::check(); // ログインしているかチェック
         return true; // コントローラー側で Auth::user() を使うのでここでは true
     }
 
@@ -34,21 +33,25 @@ class UpdateProfileRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255'],
-            // email は通常変更させないことが多いが、許可する場合は unique 制約も考慮
-            // 'email' => ['sometimes', 'required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($userId)],
+            // email は通常変更させない
             'headline' => ['nullable', 'string', 'max:255'],
             'location' => ['nullable', 'string', 'max:255'],
             'introduction' => ['nullable', 'string', 'max:65535'], // TEXT 型を想定
             'contact_email' => ['nullable', 'string', 'email', 'max:255'],
             'social_links' => ['nullable', 'array'], // 値は配列であることを期待
-            'social_links.github' => ['nullable', 'string', 'url:http,https', 'max:2048'], // 個別のキーに対してルール指定
+            'social_links.github' => ['nullable', 'string', 'url:http,https', 'max:2048'],
             'social_links.twitter' => ['nullable', 'string', 'url:http,https', 'max:2048'],
             'social_links.linkedin' => ['nullable', 'string', 'url:http,https', 'max:2048'],
-            // 必要に応じて他の SNS も追加
+            'social_links.facebook' => ['nullable', 'string', 'url:http,https', 'max:2048'], // ★ Facebook 追加
+            'social_links.instagram' => ['nullable', 'string', 'url:http,https', 'max:2048'], // ★ Instagram 追加
             'experienced_industries' => ['nullable', 'array', 'max:5'], // 経験業界 (配列, 最大5つまでなど)
             'experienced_industries.*' => ['required', 'string', Rule::in($validIndustries)], // 配列の各要素が設定値のキーに含まれるか
             'experienced_company_types' => ['nullable', 'array', 'max:3'], // 経験企業タイプ (配列, 最大3つまでなど)
             'experienced_company_types.*' => ['required', 'string', Rule::in($validCompanyTypes)], // 同上
+
+            // ★ 所属企業情報のバリデーションを追加
+            'current_company_name' => ['nullable', 'string', 'max:255'],
+            'current_company_url' => ['nullable', 'string', 'url:http,https', 'max:2048'],
         ];
     }
 
@@ -60,7 +63,8 @@ class UpdateProfileRequest extends FormRequest
         return [
             'experienced_industries.*.in' => '選択された業界が無効です。',
             'experienced_company_types.*.in' => '選択された企業タイプが無効です。',
-            'social_links.*.url' => ':attribute には有効な URL を入力してください。',
+            'social_links.*.url' => ':attribute には有効な URL を入力してください。', // 汎用的なメッセージで facebook, instagram もカバー
+            'current_company_url.url' => '所属企業のURLには有効な URL を入力してください。', // 会社URL用のメッセージ (任意)
         ];
     }
 }
