@@ -1,5 +1,5 @@
 // frontend/src/pages/ProfileEditPage.tsx
-import React, { useState, useEffect, useCallback } from 'react'; // ★ useEffect, useCallback 追加
+import React, { useState, useEffect, useCallback, useRef } from 'react'; // ★ useEffect, useCallback 追加
 import {
     Card,
     CardContent,
@@ -121,6 +121,8 @@ function ProfileEditPage() {
     const { user, isLoading: isAuthLoading, isLoggedIn } = useAuthStore();
     const queryClient = useQueryClient();
     const { toast } = useToast();
+    // ★ デバウンス用のタイマー ID を保持する ref
+    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // --- ダイアログ状態管理 ---
     const [isExperienceDialogOpen, setIsExperienceDialogOpen] = useState(false);
@@ -389,26 +391,46 @@ function ProfileEditPage() {
         }
     };
 
-    // ★ スキル検索実行 (debounce も検討)
     const handleSkillSearch = useCallback(async (query: string) => {
-        setSkillSearchQuery(query);
-        if (query.length < 1) { // 1文字未満なら検索しない
+        setSkillSearchQuery(query); // 入力値は即時反映
+
+        // 既存のタイマーがあればクリア
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+
+        // 1文字未満なら検索せず、結果もクリア
+        if (query.length < 1) { // または >= 2 にする
             setSkillSearchResults([]);
+            setIsSearchingSkills(false); // ローディングも解除
             return;
         }
-        setIsSearchingSkills(true);
-        try {
-            const results = await searchSkills(query);
-            // 現在選択されているスキルは検索結果から除外
-            const currentSkillIds = managedSkills.map(s => s.id);
-            setSkillSearchResults(results.filter(r => !currentSkillIds.includes(r.id)));
-        } catch (error) {
-            console.error("スキル検索エラー:", error);
-            setSkillSearchResults([]); // エラー時は空にする
-        } finally {
-            setIsSearchingSkills(false);
-        }
-    }, [managedSkills]); // managedSkills が変更されたら再生成
+
+        // 新しいタイマーを設定 (例: 300ms 後に実行)
+        debounceTimerRef.current = setTimeout(async () => {
+            setIsSearchingSkills(true);
+            try {
+                const results = await searchSkills(query); // API 呼び出し
+                const currentSkillIds = managedSkills.map(s => s.id);
+                setSkillSearchResults(results.filter(r => !currentSkillIds.includes(r.id)));
+            } catch (error) {
+                console.error("スキル検索エラー:", error);
+                setSkillSearchResults([]);
+            } finally {
+                setIsSearchingSkills(false);
+            }
+        }, 500); // 300ミリ秒待つ
+
+    }, [managedSkills]); // managedSkills が変わった時だけ関数を再生成
+
+    // ★ コンポーネントアンマウント時にタイマーをクリア
+    useEffect(() => {
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, []); // 空の依存配列で初回のみ登録
 
     // ★ スキル追加処理 (Combobox で選択された時)
     const handleAddSkill = (selectedSkill: SkillMaster) => {
@@ -641,7 +663,7 @@ function ProfileEditPage() {
                             searchResults={skillSearchResults}
                             onSelectSkill={handleAddSkill}
                             isLoading={isSearchingSkills}
-                            placeholder="スキル名で検索..."
+                            placeholder="スキル名で検索 (例: PHP, 英語)..."
                             loadingPlaceholder="検索中..."
                             emptyPlaceholder="スキルが見つかりません"
                         />
