@@ -1,5 +1,5 @@
 // frontend/src/pages/ProfileEditPage.tsx
-import React, { useState, useEffect, useCallback, useRef } from 'react'; // ★ useEffect, useCallback 追加
+import React, { useState, useEffect } from 'react'; // ★ useCallback, useRef は不要に
 import {
     Card,
     CardContent,
@@ -8,19 +8,19 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-// ★ アイコン追加: Lightbulb, X, Search, Check, ChevronsUpDown
-import { Loader2, Terminal, Plus, Edit, Trash2, Briefcase, Calendar, Building, GraduationCap, Lightbulb, X, Search, Check, ChevronsUpDown } from 'lucide-react';
+// ★ アイコン整理: Search, ChevronsUpDown は不要に
+import { Loader2, Terminal, Plus, Edit, Trash2, Briefcase, Calendar, Building, GraduationCap, Lightbulb, X, Check } from 'lucide-react';
 import useAuthStore from '@/stores/authStore';
 import { Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
+// ★ SkillMaster 型をインポート
 import { UserProfile, Experience, Education, UserSkill, Skill as SkillMaster } from '@/types/user';
 import { BasicInfoForm, ProfileFormData } from '@/components/forms/BasicInfoForm';
 import { useToast } from "@/hooks/use-toast";
-import { Button } from '@/components/ui/button'; // Button をインポート
+import { Button } from '@/components/ui/button';
 import { ExperienceDialog } from '@/components/dialogs/ExperienceDialog';
 import { ExperienceFormData } from '@/components/forms/ExperienceForm';
-// ★ 学歴用フォーム・ダイアログをインポート
 import { EducationDialog } from '@/components/dialogs/EducationDialog';
 import { EducationFormData } from '@/components/forms/EducationForm';
 import {
@@ -34,8 +34,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { SkillItem } from '@/components/profile/SkillItem';
-import { SkillCombobox } from '@/components/profile/SkillCombobox';
-import { Label } from "@/components/ui/label";
+// ★ SkillCombobox の代わりに SkillAsyncSelect をインポート
+// import { SkillCombobox } from '@/components/profile/SkillCombobox';
+import { SkillAsyncSelect } from '@/components/profile/SkillAsyncSelect'; // react-select を使うコンポーネント
+import { Label } from "@/components/ui/label"; // Label をインポート
+// ★ react-select の型をインポート
+import { InputActionMeta } from 'react-select';
 
 // --- API 関数 ---
 const fetchMyProfile = async (): Promise<UserProfile> => {
@@ -111,18 +115,10 @@ const updateMySkills = async (skillsData: Array<{ skill_id: number; level: numbe
     return response.data.data.skills;
 };
 
-// スキル検索API関数
-const searchSkills = async (query: string): Promise<SkillMaster[]> => {
-    const response = await apiClient.get<SkillMaster[]>(`/api/skills?query=${encodeURIComponent(query)}`);
-    return response.data;
-};
-
 function ProfileEditPage() {
     const { user, isLoading: isAuthLoading, isLoggedIn } = useAuthStore();
     const queryClient = useQueryClient();
     const { toast } = useToast();
-    // ★ デバウンス用のタイマー ID を保持する ref
-    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // --- ダイアログ状態管理 ---
     const [isExperienceDialogOpen, setIsExperienceDialogOpen] = useState(false);
@@ -134,14 +130,10 @@ function ProfileEditPage() {
     const [editingEducation, setEditingEducation] = useState<Education | null>(null);
     const [isDeleteEducationDialogOpen, setIsDeleteEducationDialogOpen] = useState(false);
     const [deletingEducationId, setDeletingEducationId] = useState<number | null>(null);
-    // ★ スキル編集用State　現在のユーザースキルリスト (編集用)
+    // ★ スキル編集用 State　現在のユーザースキルリスト (編集用)
     const [managedSkills, setManagedSkills] = useState<UserSkill[]>([]);
-    // ★ スキルマスタ検索結果
-    const [skillSearchResults, setSkillSearchResults] = useState<SkillMaster[]>([]);
-    // ★ スキル検索クエリ
-    const [skillSearchQuery, setSkillSearchQuery] = useState('');
-    // ★ スキル検索中フラグ
-    const [isSearchingSkills, setIsSearchingSkills] = useState(false);
+    // ★ スキル検索の入力値を管理する State を追加
+    const [skillInputValue, setSkillInputValue] = useState('');
 
     // --- データ取得 ---
     const { data: currentProfile, isLoading: isLoadingProfile, error: profileError } = useQuery<UserProfile, Error>({
@@ -182,6 +174,8 @@ function ProfileEditPage() {
         enabled: isLoggedIn,
         staleTime: 5 * 60 * 1000,
     });
+
+
 
 
     // --- プロフィール更新 Mutation ---
@@ -390,48 +384,6 @@ function ProfileEditPage() {
             deleteEducationMutation.mutate(deletingEducationId);
         }
     };
-
-    const handleSkillSearch = useCallback(async (query: string) => {
-        setSkillSearchQuery(query); // 入力値は即時反映
-
-        // 既存のタイマーがあればクリア
-        if (debounceTimerRef.current) {
-            clearTimeout(debounceTimerRef.current);
-        }
-
-        // 1文字未満なら検索せず、結果もクリア
-        if (query.length < 1) { // または >= 2 にする
-            setSkillSearchResults([]);
-            setIsSearchingSkills(false); // ローディングも解除
-            return;
-        }
-
-        // 新しいタイマーを設定 (例: 300ms 後に実行)
-        debounceTimerRef.current = setTimeout(async () => {
-            setIsSearchingSkills(true);
-            try {
-                const results = await searchSkills(query); // API 呼び出し
-                const currentSkillIds = managedSkills.map(s => s.id);
-                setSkillSearchResults(results.filter(r => !currentSkillIds.includes(r.id)));
-            } catch (error) {
-                console.error("スキル検索エラー:", error);
-                setSkillSearchResults([]);
-            } finally {
-                setIsSearchingSkills(false);
-            }
-        }, 500); // 300ミリ秒待つ
-
-    }, [managedSkills]); // managedSkills が変わった時だけ関数を再生成
-
-    // ★ コンポーネントアンマウント時にタイマーをクリア
-    useEffect(() => {
-        return () => {
-            if (debounceTimerRef.current) {
-                clearTimeout(debounceTimerRef.current);
-            }
-        };
-    }, []); // 空の依存配列で初回のみ登録
-
     // ★ スキル追加処理 (Combobox で選択された時)
     const handleAddSkill = (selectedSkill: SkillMaster) => {
         // 重複チェック
@@ -454,13 +406,24 @@ function ProfileEditPage() {
             }
         };
         setManagedSkills(prev => [...prev, newUserSkill]);
-        setSkillSearchQuery(''); // 検索窓をクリア
-        setSkillSearchResults([]); // 検索結果をクリア
+        // ★ 選択後に入力値 State をクリア
+        setSkillInputValue('');
     };
 
     // ★ スキル削除処理
     const handleRemoveSkill = (skillId: number) => {
         setManagedSkills(prev => prev.filter(s => s.id !== skillId));
+    };
+
+    // ★ スキル入力変更ハンドラ
+    const handleSkillInputChange = (newValue: string, actionMeta: InputActionMeta) => {
+        // actionMeta.action が 'input-change' の時だけ state を更新
+        // 'menu-close', 'input-blur' など他のイベントでは更新しない
+        if (actionMeta.action === 'input-change') {
+            setSkillInputValue(newValue);
+        }
+         // 'set-value' は onChange で選択された時に発火することがあるので、
+         // ここでクリアすると選択直後にクリアされてしまう可能性があるため注意
     };
 
     // ★ スキルの詳細情報 (level 等) 更新処理
@@ -655,17 +618,15 @@ function ProfileEditPage() {
                 <CardContent className="space-y-6">
                     {/* --- スキル追加 UI --- */}
                     <div className="space-y-2">
-                        <Label htmlFor="skill-search">スキルを追加</Label>
-                        {/* ★ SkillCombobox コンポーネント (後で作成) */}
-                        <SkillCombobox
-                            searchQuery={skillSearchQuery}
-                            onSearchChange={handleSkillSearch}
-                            searchResults={skillSearchResults}
+                        <Label htmlFor="skill-async-select">スキルを追加</Label>
+                        {/* ★ SkillAsyncSelect を使用 */}
+                        <SkillAsyncSelect
                             onSelectSkill={handleAddSkill}
-                            isLoading={isSearchingSkills}
-                            placeholder="スキル名で検索 (例: PHP, 英語)..."
-                            loadingPlaceholder="検索中..."
-                            emptyPlaceholder="スキルが見つかりません"
+                            excludeSkillIds={managedSkills.map(s => s.id)}
+                            // ★ inputValue と onInputChange を渡す
+                            inputValue={skillInputValue}
+                            onInputChange={handleSkillInputChange}
+                            placeholder="スキル名で検索..."
                         />
                         <CardDescription>
                             追加したいスキルを検索して選択してください。
