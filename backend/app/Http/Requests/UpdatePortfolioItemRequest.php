@@ -1,5 +1,5 @@
 <?php
-
+//backend/app/Http/Requests/UpdatePortfolioItemRequest.php
 namespace App\Http\Requests;
 
 // use App\Models\PortfolioItem; // 認可で使う場合

@@ -1,5 +1,5 @@
 <?php
-
+//backend/app/Http/Controllers/PortfolioItemController.php
 namespace App\Http\Controllers;
 
 use App\Models\PortfolioItem; // PortfolioItem モデルをインポート

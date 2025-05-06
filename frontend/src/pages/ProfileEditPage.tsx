@@ -9,13 +9,13 @@ import {
 } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 // ★ アイコン整理: Search, ChevronsUpDown は不要に
-import { Loader2, Terminal, Plus, Edit, Trash2, Briefcase, Calendar, Building, GraduationCap, Lightbulb, X, Check, Star } from 'lucide-react';
+import { Loader2, Terminal, Plus, Edit, Trash2, Briefcase, Calendar, Building, GraduationCap, Lightbulb, X, Check, Star, BookOpen, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import useAuthStore from '@/stores/authStore';
 import { Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 // ★ SkillMaster 型をインポート
-import { UserProfile, Experience, Education, UserSkill } from '@/types/user';
+import { UserProfile, Experience, Education, UserSkill, Skill as SkillMaster, PortfolioItem } from '@/types/user';
 import { BasicInfoForm, ProfileFormData } from '@/components/forms/BasicInfoForm';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,8 @@ import { Label } from "@/components/ui/label"; // Label をインポート
 // ★ react-select の型をインポート
 import { InputActionMeta } from 'react-select';
 import { Badge } from "@/components/ui/badge";
+import { PortfolioDialog } from '@/components/dialogs/PortfolioDialog';
+import { PortfolioFormData } from '@/components/forms/PortfolioForm';
 
 // --- API 関数 ---
 const fetchMyProfile = async (): Promise<UserProfile> => {
@@ -117,6 +119,23 @@ const updateMySkills = async (skillsData: Array<{ skill_id: number; level: numbe
     return response.data.data.skills;
 };
 
+// ★ ポートフォリオ取得・CRUD API 関数を追加
+const fetchMyPortfolioItems = async (): Promise<PortfolioItem[]> => {
+    const response = await apiClient.get<{ data: PortfolioItem[] }>('/api/profile/portfolio-items');
+    return response.data.data;
+};
+const createPortfolioItem = async (data: PortfolioFormData): Promise<PortfolioItem> => {
+    const response = await apiClient.post<{ data: PortfolioItem }>('/api/profile/portfolio-items', data);
+    return response.data.data;
+};
+const updatePortfolioItem = async ({ id, data }: { id: number; data: PortfolioFormData }): Promise<PortfolioItem> => {
+    const response = await apiClient.put<{ data: PortfolioItem }>(`/api/profile/portfolio-items/${id}`, data);
+    return response.data.data;
+};
+const deletePortfolioItem = async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/profile/portfolio-items/${id}`);
+};
+
 function ProfileEditPage() {
     const { user, isLoading: isAuthLoading, isLoggedIn } = useAuthStore();
     const queryClient = useQueryClient();
@@ -141,6 +160,11 @@ function ProfileEditPage() {
     const [managedSkills, setManagedSkills] = useState<UserSkill[]>([]);
     // ★ スキル検索の入力値を管理する State を追加
     const [skillInputValue, setSkillInputValue] = useState('');
+    // ★ ポートフォリオ用ダイアログの状態を追加
+    const [isPortfolioDialogOpen, setIsPortfolioDialogOpen] = useState(false);
+    const [editingPortfolioItem, setEditingPortfolioItem] = useState<PortfolioItem | null>(null);
+    const [isDeletePortfolioDialogOpen, setIsDeletePortfolioDialogOpen] = useState(false);
+    const [deletingPortfolioItemId, setDeletingPortfolioItemId] = useState<number | null>(null);
 
     // --- データ取得 ---
     const { data: currentProfile, isLoading: isLoadingProfile, error: profileError } = useQuery<UserProfile, Error>({
@@ -182,6 +206,13 @@ function ProfileEditPage() {
         staleTime: 5 * 60 * 1000,
     });
 
+    // ★ ポートフォリオデータ取得 Query を追加
+    const { data: portfolioItems, isLoading: isLoadingPortfolio, error: portfolioError } = useQuery<PortfolioItem[], Error>({
+        queryKey: ['myPortfolioItems'], // ポートフォリオ用のキャッシュキー
+        queryFn: fetchMyPortfolioItems,
+        enabled: isLoggedIn,
+        staleTime: 5 * 60 * 1000,
+    });
 
 
 
@@ -349,6 +380,65 @@ function ProfileEditPage() {
         }
     });
 
+        // ★ ポートフォリオ CRUD Mutation を追加
+    const createPortfolioItemMutation = useMutation<PortfolioItem, Error, PortfolioFormData, unknown>({
+        mutationFn: createPortfolioItem,
+        onSuccess: (newItem) => {
+            // キャッシュ更新: 新しいデータをリストの先頭に追加 (または末尾に追加)
+            // ユーザーが追加したものをすぐに見たい場合は先頭、時系列順なら末尾が良い場合も
+            queryClient.setQueryData<PortfolioItem[]>(['myPortfolioItems'], (oldData = []) => [newItem, ...oldData]);
+            setIsPortfolioDialogOpen(false); // ダイアログを閉じる
+            toast({ title: "成功", description: "ポートフォリオが追加されました。" });
+        },
+        onError: (error) => {
+             console.error("ポートフォリオ追加エラー:", error);
+             // エラーレスポンスから詳細を取得できる場合
+             const errorMessage = (error as any)?.response?.data?.message || "ポートフォリオの追加に失敗しました。";
+             toast({ title: "エラー", description: errorMessage, variant: "destructive" });
+             // ダイアログは閉じずにエラーを表示する (ユーザーが再試行できるように)
+             // setIsPortfolioDialogOpen(false);
+        }
+    });
+    const updatePortfolioItemMutation = useMutation<PortfolioItem, Error, { id: number; data: PortfolioFormData }, unknown>({
+        mutationFn: updatePortfolioItem,
+        onSuccess: (updatedItem) => {
+             // キャッシュ更新: 更新されたデータでリストを置き換え
+            queryClient.setQueryData<PortfolioItem[]>(['myPortfolioItems'], (oldData = []) =>
+                oldData.map(item => item.id === updatedItem.id ? updatedItem : item)
+            );
+            setIsPortfolioDialogOpen(false); // ダイアログを閉じる
+            setEditingPortfolioItem(null);      // 編集対象をリセット
+            toast({ title: "成功", description: "ポートフォリオが更新されました。" });
+        },
+         onError: (error) => {
+             console.error("ポートフォリオ更新エラー:", error);
+             const errorMessage = (error as any)?.response?.data?.message || "ポートフォリオの更新に失敗しました。";
+             toast({ title: "エラー", description: errorMessage, variant: "destructive" });
+             // 更新失敗時もダイアログは閉じない方が良い場合がある
+             // setIsPortfolioDialogOpen(false);
+             // setEditingPortfolioItem(null);
+        }
+    });
+    const deletePortfolioItemMutation = useMutation<void, Error, number, unknown>({
+        mutationFn: deletePortfolioItem,
+        onSuccess: (_, deletedId) => { // 第2引数で削除IDを受け取る
+            // キャッシュ更新: 削除されたデータをリストから除外
+            queryClient.setQueryData<PortfolioItem[]>(['myPortfolioItems'], (oldData = []) =>
+                oldData.filter(item => item.id !== deletedId)
+            );
+            setIsDeletePortfolioDialogOpen(false); // 削除確認ダイアログを閉じる
+            setDeletingPortfolioItemId(null); // 削除対象IDをリセット
+            toast({ title: "成功", description: "ポートフォリオが削除されました。" });
+        },
+        onError: (error) => {
+             console.error("ポートフォリオ削除エラー:", error);
+             const errorMessage = (error as any)?.response?.data?.message || "ポートフォリオの削除に失敗しました。";
+             toast({ title: "エラー", description: errorMessage, variant: "destructive" });
+             setIsDeletePortfolioDialogOpen(false); // エラー時も確認ダイアログは閉じる
+             setDeletingPortfolioItemId(null);
+        }
+    });
+
     // --- ボタンハンドラ ---
     const handleAddNewExperience = () => {
         setEditingExperience(null); // 新規追加モード
@@ -484,6 +574,33 @@ function ProfileEditPage() {
         updateSkillsMutation.mutate(updatedSkillList);
     };
 
+    // ★ ポートフォリオ用ボタンハンドラを追加
+    const handleAddNewPortfolioItem = () => {
+        setEditingPortfolioItem(null);
+        setIsPortfolioDialogOpen(true);
+    };
+    const handleEditPortfolioItem = (item: PortfolioItem) => {
+        setEditingPortfolioItem(item);
+        setIsPortfolioDialogOpen(true);
+    };
+    const handleDeletePortfolioItemClick = (id: number) => {
+        setDeletingPortfolioItemId(id);
+        setIsDeletePortfolioDialogOpen(true);
+    };
+     const confirmDeletePortfolioItem = () => {
+        if (deletingPortfolioItemId) {
+            deletePortfolioItemMutation.mutate(deletingPortfolioItemId);
+        }
+    };
+    // ★ ポートフォリオ保存ハンドラ (ダイアログから呼び出される)
+    const handleSavePortfolioItem = (formData: PortfolioFormData) => {
+        if (editingPortfolioItem) { // 編集
+            updatePortfolioItemMutation.mutate({ id: editingPortfolioItem.id, data: formData });
+        } else { // 新規作成
+            createPortfolioItemMutation.mutate(formData);
+        }
+    };
+
     // --- ローディング・エラーハンドリング ---
     if (isAuthLoading) { // 認証状態チェック中
         return <div className="flex justify-center items-center h-64"><Loader2 className="h-16 w-16 animate-spin text-muted-foreground" /></div>;
@@ -492,12 +609,12 @@ function ProfileEditPage() {
         return <Navigate to="/login" replace />;
     }
     // ★ データ取得中のローディング表示を統合
-    if (isLoadingProfile || isLoadingMetadata || isLoadingExperiences || isLoadingEducations) {
+    if (isLoadingProfile || isLoadingMetadata || isLoadingExperiences || isLoadingEducations || isLoadingPortfolio) {
          return <div className="flex justify-center items-center h-64"><Loader2 className="h-16 w-16 animate-spin text-muted-foreground" /></div>;
     }
     // ★ データ取得エラー表示を統合
-    if (profileError || metadataError || experiencesError || educationsError || !currentProfile || !metadata) {
-         const errorMsg = profileError?.message || metadataError?.message || experiencesError?.message || educationsError?.message || 'データの取得に失敗しました。';
+    if (profileError || metadataError || experiencesError || educationsError || portfolioError || !currentProfile || !metadata) {
+         const errorMsg = profileError?.message || metadataError?.message || experiencesError?.message || educationsError?.message || portfolioError?.message || 'データの取得に失敗しました。';
          return (
             <div className="container mx-auto max-w-3xl px-4 py-8">
                 <Alert variant="destructive">
@@ -703,10 +820,57 @@ function ProfileEditPage() {
                 </CardContent>
              </Card>
 
-             {/* --- ポートフォリオセクション (開発中) --- */}
+             {/* --- ポートフォリオセクション --- ★ 追加 ★ */}
              <Card className="mt-6">
-                <CardHeader><CardTitle>ポートフォリオ</CardTitle></CardHeader>
-                <CardContent><p className="text-muted-foreground italic">（開発中）</p></CardContent>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle className="flex items-center"><BookOpen className="h-5 w-5 mr-2 text-primary"/>ポートフォリオ</CardTitle>
+                        <CardDescription>作成した作品やプロジェクト実績などを登録してください。</CardDescription>
+                    </div>
+                     <Button variant="outline" size="sm" onClick={handleAddNewPortfolioItem}>
+                         <Plus className="h-4 w-4 mr-2" />
+                         新規追加
+                     </Button>
+                </CardHeader>
+                <CardContent>
+                    {/* ★ ポートフォリオリスト表示 */}
+                    {portfolioItems && portfolioItems.length > 0 ? (
+                        <div className="grid grid-cols-1 gap-4"> {/* 1列表示 */}
+                            {portfolioItems.map(item => (
+                                <Card key={item.id} className="flex flex-col sm:flex-row"> {/* 横並びにする */}
+                                     {/* TODO: v1.1 サムネイル表示 */}
+                                     {/* <img src={item.thumbnail_url ?? '/placeholder.png'} alt={item.title} className="w-full sm:w-32 h-32 sm:h-auto object-cover flex-shrink-0"/> */}
+                                    <div className="flex-grow p-4 flex flex-col justify-between">
+                                         <div>
+                                             <CardTitle className="text-base mb-1">{item.title}</CardTitle>
+                                             {item.url && (
+                                                <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center break-all mb-2">
+                                                    <LinkIcon className="h-3 w-3 mr-1 flex-shrink-0"/><span>{item.url}</span> <ExternalLink className="h-3 w-3 ml-1 flex-shrink-0 opacity-70" />
+                                                </a>
+                                             )}
+                                             {item.description && (
+                                                 <p className="text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none">{item.description}</p>
+                                             )}
+                                         </div>
+                                          {/* ★ 編集・削除ボタン */}
+                                         <div className="flex space-x-2 mt-3 self-end">
+                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditPortfolioItem(item)}>
+                                                 <Edit className="h-4 w-4" />
+                                             </Button>
+                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeletePortfolioItemClick(item.id)}>
+                                                 <Trash2 className="h-4 w-4" />
+                                             </Button>
+                                         </div>
+                                    </div>
+                                </Card>
+                            ))}
+                        </div>
+                     ) : (
+                         <p className="text-muted-foreground italic text-center py-4">
+                             ポートフォリオはまだ登録されていません。「新規追加」ボタンから登録できます。
+                         </p>
+                     )}
+                </CardContent>
              </Card>
 
             {/* --- モーダルダイアログ --- */}
@@ -746,6 +910,15 @@ function ProfileEditPage() {
                     onSkillInputChange={handleSkillInputChange} // 入力変更ハンドラ
                  />
             )}
+
+            {/* ★ PortfolioDialog をレンダリング */}
+            <PortfolioDialog
+                isOpen={isPortfolioDialogOpen}
+                setIsOpen={setIsPortfolioDialogOpen}
+                editingPortfolioItem={editingPortfolioItem}
+                onSave={handleSavePortfolioItem}
+                isSaving={createPortfolioItemMutation.isPending || updatePortfolioItemMutation.isPending} // 保存中フラグ
+            />
 
             {/* ★ 削除確認 AlertDialog をレンダリング */}
             <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -810,6 +983,29 @@ function ProfileEditPage() {
                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
                         {updateSkillsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        削除する
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* ★ ポートフォリオ削除確認 AlertDialog をレンダリング */}
+             <AlertDialog open={isDeletePortfolioDialogOpen} onOpenChange={setIsDeletePortfolioDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>削除確認</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        このポートフォリオ項目を削除してもよろしいですか？この操作は元に戻せません。
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setDeletingPortfolioItemId(null)}>キャンセル</AlertDialogCancel>
+                    <AlertDialogAction
+                         onClick={confirmDeletePortfolioItem}
+                         disabled={deletePortfolioItemMutation.isPending}
+                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                        {deletePortfolioItemMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         削除する
                     </AlertDialogAction>
                     </AlertDialogFooter>
