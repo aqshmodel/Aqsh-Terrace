@@ -90,6 +90,40 @@ export interface UserProfile {
   is_owner: boolean; // 本人かどうかのフラグ
 }
 
+// ★★★ ユーザー一覧 API レスポンスの型 (ページネーション付き) ★★★
+export interface SimpleUserInfo {
+    id: number;
+    name: string;
+    profile_image_url: string | null;
+    headline: string | null;
+    location: string | null;
+    created_at: string;
+    // カウント情報 (UserController@index で withCount した場合)
+    posts_count?: number;
+    followers_count?: number;
+    followings_count?: number;
+}
+
+export interface PaginatedUsersResponse { // ★ 新しく追加 ★
+  data: SimpleUserInfo[];
+  links: {
+    first: string | null;
+    last: string | null;
+    prev: string | null;
+    next: string | null;
+  };
+  meta: {
+    current_page: number;
+    from: number | null;
+    last_page: number;
+    links: Array<{ url: string | null; label: string; active: boolean }>;
+    path: string;
+    per_page: number;
+    to: number | null;
+    total: number;
+  };
+}
+
 // ユーザー投稿一覧 API のレスポンス型 (post.ts から移動または再定義)
 export interface PaginatedUserPostsResponse {
   data: Post[];
@@ -110,3 +144,4 @@ export interface PaginatedUserPostsResponse {
     total: number;
   };
 }
+

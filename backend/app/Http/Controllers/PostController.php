@@ -19,7 +19,7 @@ class PostController extends Controller
      */
     public function index(Request $request)
     {
-        $perPage = $request->query('per_page', 15); // 1ページあたりの表示件数
+        $perPage = $request->query('per_page', 10); // 1ページあたりの表示件数
         $userId = Auth::id(); // 認証ユーザーのIDを取得 (いいね判定用)
 
         // 投稿を取得するクエリビルダ

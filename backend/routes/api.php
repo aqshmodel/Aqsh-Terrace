@@ -42,6 +42,8 @@ use App\Http\Controllers\MetadataController;
 // --- 認証不要な API ---
 Route::post('/register', [RegisterController::class, 'store'])->name('register'); // ルート名を付与
 Route::post('/login', [LoginController::class, 'store'])->name('login'); // ルート名を付与
+// --- ユーザー一覧表示 ---
+Route::get('/users', [UserController::class, 'index'])->name('users.index');
 // ログアウトは認証が必要な group に移動
 // Route::post('/logout', [LogoutController::class, 'destroy'])->name('logout');
 
@@ -80,7 +82,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
     Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount'])->name('notifications.unreadCount');
     // TODO: 個別既読 API POST /notifications/{notification}/read
-
     // --- 他ユーザー プロフィール表示関連 ---
     Route::get('/users/{user}', [UserController::class, 'show'])->name('users.show');
     Route::get('/users/{user}/posts', [UserController::class, 'posts'])->name('users.posts');

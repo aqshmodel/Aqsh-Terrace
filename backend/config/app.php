@@ -6,24 +6,17 @@ return [
     |--------------------------------------------------------------------------
     | Application Name
     |--------------------------------------------------------------------------
-    |
-    | This value is the name of your application, which will be used when the
-    | framework needs to place the application's name in a notification or
-    | other UI elements where an application name needs to be displayed.
-    |
+    | アプリケーション名。通知やUI要素で使用されます。
     */
 
-    'name' => env('APP_NAME', 'Laravel'),
+    'name' => env('APP_NAME', 'Laravel'), // アプリケーション名 (例: コミュニティプラットフォーム)
 
     /*
     |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
-    |
-    | This value determines the "environment" your application is currently
-    | running in. This may determine how you prefer to configure various
-    | services the application utilizes. Set this in your ".env" file.
-    |
+    | アプリケーションの実行環境。'.env' ファイルで設定します。
+    | 例: 'local', 'staging', 'production'
     */
 
     'env' => env('APP_ENV', 'production'),
@@ -32,11 +25,8 @@ return [
     |--------------------------------------------------------------------------
     | Application Debug Mode
     |--------------------------------------------------------------------------
-    |
-    | When your application is in debug mode, detailed error messages with
-    | stack traces will be shown on every error that occurs within your
-    | application. If disabled, a simple generic error page is shown.
-    |
+    | デバッグモード。有効にすると詳細なエラーが表示されます。
+    | 本番環境では必ず false に設定してください。
     */
 
     'debug' => (bool) env('APP_DEBUG', false),
@@ -45,11 +35,7 @@ return [
     |--------------------------------------------------------------------------
     | Application URL
     |--------------------------------------------------------------------------
-    |
-    | This URL is used by the console to properly generate URLs when using
-    | the Artisan command line tool. You should set this to the root of
-    | the application so that it's available within Artisan commands.
-    |
+    | アプリケーションのルートURL。Artisanコマンドなどで使用されます。
     */
 
     'url' => env('APP_URL', 'http://localhost'),
@@ -58,48 +44,54 @@ return [
     |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
-    |
-    | Here you may specify the default timezone for your application, which
-    | will be used by the PHP date and date-time functions. The timezone
-    | is set to "UTC" by default as it is suitable for most use cases.
-    |
+    | アプリケーションのデフォルトタイムゾーン。PHPの日付/時刻関数で使用されます。
+    | 日本の場合は 'Asia/Tokyo' を設定します。
     */
 
-    'timezone' => 'UTC',
+    'timezone' => env('APP_TIMEZONE', 'Asia/Tokyo'), // ★ 日本時間に設定 ★
 
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------
-    |
-    | The application locale determines the default locale that will be used
-    | by Laravel's translation / localization methods. This option can be
-    | set to any locale for which you plan to have translation strings.
-    |
+    | アプリケーションのデフォルトロケール。翻訳機能などで使用されます。
+    | 日本語をデフォルトにする場合は 'ja' を設定します。
     */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    'locale' => env('APP_LOCALE', 'ja'), // ★ 日本語に設定 ★
 
-    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
+    /*
+    |--------------------------------------------------------------------------
+    | Application Fallback Locale
+    |--------------------------------------------------------------------------
+    | デフォルトロケールの翻訳が存在しない場合に使用されるフォールバックロケール。
+    */
 
-    'faker_locale' => env('APP_FAKER_LOCALE', 'en_US'),
+    'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'), // フォールバックは英語のままが多い
+
+    /*
+    |--------------------------------------------------------------------------
+    | Faker Locale
+    |--------------------------------------------------------------------------
+    | Model Factory などで使用される Faker ライブラリのロケール。
+    | 日本語のダミーデータを生成する場合は 'ja_JP' を設定します。
+    */
+
+    'faker_locale' => env('APP_FAKER_LOCALE', 'ja_JP'), // ★ 日本語ロケールに変更 ★
 
     /*
     |--------------------------------------------------------------------------
     | Encryption Key
     |--------------------------------------------------------------------------
-    |
-    | This key is utilized by Laravel's encryption services and should be set
-    | to a random, 32 character string to ensure that all encrypted values
-    | are secure. You should do this prior to deploying the application.
-    |
+    | 暗号化サービスで使用されるキー。安全のため、ランダムな32文字の文字列を設定します。
+    | 'php artisan key:generate' コマンドで設定されます。
     */
 
-    'cipher' => 'AES-256-CBC',
+    'cipher' => 'AES-256-CBC', // 暗号化方式
 
-    'key' => env('APP_KEY'),
+    'key' => env('APP_KEY'), // 暗号化キー (.env から読み込み)
 
-    'previous_keys' => [
+    'previous_keys' => [ // 古い暗号化キー (キーローテーション用)
         ...array_filter(
             explode(',', env('APP_PREVIOUS_KEYS', ''))
         ),
@@ -109,18 +101,14 @@ return [
     |--------------------------------------------------------------------------
     | Maintenance Mode Driver
     |--------------------------------------------------------------------------
-    |
-    | These configuration options determine the driver used to determine and
-    | manage Laravel's "maintenance mode" status. The "cache" driver will
-    | allow maintenance mode to be controlled across multiple machines.
-    |
-    | Supported drivers: "file", "cache"
-    |
+    | メンテナンスモードの管理に使用するドライバ。
+    | "file": storage/framework/down ファイルで制御 (デフォルト)
+    | "cache": キャッシュストアで制御 (複数サーバー構成向け)
     */
 
     'maintenance' => [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
-        'store' => env('APP_MAINTENANCE_STORE', 'database'),
+        // 'store' => env('APP_MAINTENANCE_STORE', 'database'), // driver が cache の場合に指定
     ],
 
 ];

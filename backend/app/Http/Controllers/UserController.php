@@ -18,6 +18,23 @@ class UserController extends Controller
      * @param \App\Models\User $user ルートモデルバインディングで User インスタンスを受け取る
      * @return \App\Http\Resources\UserResource|\Illuminate\Http\JsonResponse
      */
+
+    public function index(Request $request) // ★ index メソッド追加 ★
+    {
+        // ページネーションでユーザーを取得
+        // 必要なカラムを選択し、関連カウントも取得
+        $users = User::query()
+            ->select(['id', 'name', 'profile_image_url', 'headline', 'location', 'created_at']) // 基本情報
+            ->withCount(['posts', 'followers', 'followings']) // カウント情報
+            ->latest() // 例: 登録が新しい順
+            ->paginate($request->query('per_page', 15)); // 1ページあたり15件
+
+        // ★ SimpleUserResource を使って Collection として返す ★
+        // return SimpleUserResource::collection($users);
+        // または Laravel 標準のページネーションレスポンスをそのまま返す
+         return response()->json($users); // まずはこれで試し、必要なら Resource を使う
+    }
+
     public function show(Request $request, User $user)
     {
         // ★★★ デバッグコード開始 ★★★

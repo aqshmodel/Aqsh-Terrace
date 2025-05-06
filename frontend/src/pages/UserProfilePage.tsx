@@ -1,5 +1,4 @@
 // /Users/tsukadatakahiro/Python/app/aqsh-net/frontend/src/pages/UserProfilePage.tsx
-// src/pages/UserProfilePage.tsx
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
