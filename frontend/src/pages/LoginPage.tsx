@@ -7,8 +7,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '@/stores/authStore'; // ストアをインポート
 import { LoginForm } from '@/components/LoginForm'; // ログインフォームコンポーネントをインポート
 // import { Link } from 'react-router-dom'; // ★ 重複していたため削除 ★
+import useDocumentTitle from '@/hooks/useDocumentTitle'; // ★ カスタムフックをインポート
 
 function LoginPage() {
+  useDocumentTitle('Aqsh Terrace | ログイン'); // ★ フックを呼び出す
   const navigate = useNavigate();
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn); // ログイン状態を取得
 
@@ -32,7 +34,6 @@ function LoginPage() {
   if (isLoggedIn) {
      return <div className="p-4 text-center">すでにログインしています。<br/>ホームページにリダイレクトします...</div>;
   }
-
   // ログインしていない場合にフォームを表示
   return (
     <div className="p-4 max-w-xl mx-auto">

@@ -44,6 +44,7 @@ import { InputActionMeta } from 'react-select';
 import { Badge } from "@/components/ui/badge";
 import { PortfolioDialog } from '@/components/dialogs/PortfolioDialog';
 import { PortfolioFormData } from '@/components/forms/PortfolioForm';
+import useDocumentTitle from '@/hooks/useDocumentTitle'; // ★ カスタムフックをインポート
 
 // --- API 関数 ---
 const fetchMyProfile = async (): Promise<UserProfile> => {
@@ -173,6 +174,8 @@ function ProfileEditPage() {
         enabled: isLoggedIn,
         staleTime: 5 * 60 * 1000,
     });
+    // ★ データ取得後にタイトルを設定
+    useDocumentTitle(currentProfile?.name ? `Aqsh Terrace | プロフィール編集 ${currentProfile.name}さん` : 'Aqsh Terrace | ユーザープロフィール');
 
     // ★ 初期スキルデータを managedSkills にセット (currentProfile が変更されたら)
     useEffect(() => {
@@ -629,7 +632,7 @@ function ProfileEditPage() {
     // --- レンダリング ---
     return (
         <div className="px-4 py-8">
-            <h1 className="text-3xl font-bold mb-6">プロフィール編集</h1>
+            <h1 className="text-3xl font-bold mb-6">Profile edit</h1>
 
             {/* --- 基本情報編集フォーム --- */}
             <Card>
@@ -750,7 +753,7 @@ function ProfileEditPage() {
 
              {/* --- スキルセクション 更新 --- */}
              <Card className="mt-6">
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                     <div>
                     <CardTitle className="flex items-center"><Lightbulb className="h-5 w-5 mr-2 text-primary"/>スキル</CardTitle>
                     <CardDescription>あなたの専門知識や技術、語学力などを登録してください。</CardDescription>

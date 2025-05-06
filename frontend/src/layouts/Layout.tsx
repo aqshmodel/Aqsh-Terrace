@@ -248,8 +248,8 @@ function Layout() {
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       {/* ==================== ヘッダー ==================== */}
       <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        {/* ★ ヘッダーコンテナ: 最大幅 1360px, 左右パディング */}
-        <div className="container flex h-16 max-w-[1360px] items-center justify-between px-4 sm:px-6 lg:px-8">
+        {/* ★ ヘッダーコンテナ: 最大幅 1600px, 左右パディング */}
+        <div className="container flex h-16 max-w-[1600px] items-center justify-between px-4 sm:px-6 lg:px-8">
           {/* 左側: ロゴ/サイト名 */}
           <Link to="/" className="mr-4 md:mr-6 flex items-center space-x-2 font-bold text-lg hover:opacity-80 transition-opacity">
             {/* <YourLogoComponent className="h-6 w-6" /> */}
@@ -260,13 +260,13 @@ function Layout() {
           <nav className="hidden md:flex flex-1 justify-center items-center space-x-6 text-sm font-medium">
               {/* 各リンクにアイコンを追加して視認性向上 */}
               <Link to="/" className="flex items-center transition-colors hover:text-foreground/80 text-foreground/60">
-                  <Home className="mr-1.5 h-4 w-4" /> ホーム
+                  <Home className="mr-1.5 h-4 w-4" /> Home
               </Link>
               <Link to="/users" className="flex items-center transition-colors hover:text-foreground/80 text-foreground/60">
-                  <Users className="mr-1.5 h-4 w-4" /> ユーザー
+                  <Users className="mr-1.5 h-4 w-4" /> Member
               </Link>
               <Link to="/about" className="flex items-center transition-colors hover:text-foreground/80 text-foreground/60">
-                  <Info className="mr-1.5 h-4 w-4" /> アバウト
+                  <Info className="mr-1.5 h-4 w-4" /> About
               </Link>
           </nav>
 

@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button'; // 前に追加したボタン�
 import { PostForm } from "@/components/PostForm"; // PostForm をインポート
 import { PostList } from "@/components/PostList"; // PostList をインポート
 import useAuthStore from "@/stores/authStore"; // ログイン状態を確認するため
+import useDocumentTitle from '@/hooks/useDocumentTitle'; // ★ カスタムフックをインポート
 
 function HomePage() {
+  useDocumentTitle('Aqsh Terrace | ホーム'); // ★ フックを呼び出す
   const isLoggedIn = useAuthStore((state) => state.isLoggedIn);
 
   return (

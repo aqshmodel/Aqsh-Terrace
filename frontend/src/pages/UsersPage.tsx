@@ -11,6 +11,7 @@ import axios, { AxiosError } from 'axios';
 import { formatRelativeTime } from '@/lib/utils'; // 日付フォーマット関数
 import { SimpleUserInfo } from '@/types/user'; // 新しい型定義をインポート
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import useDocumentTitle from '@/hooks/useDocumentTitle'; // ★ カスタムフックをインポート
 
 // APIレスポンスの型定義
 interface PaginatedUsersResponse {
@@ -38,6 +39,7 @@ const fetchUsers = async (page = 1): Promise<PaginatedUsersResponse> => {
 };
 
 function UsersPage() {
+  useDocumentTitle('Aqsh Terrace | Members'); // ★ フックを呼び出す
   // 現在のページ番号を state で管理
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -94,7 +96,7 @@ function UsersPage() {
   return (
     <div className="p-4"> {/* コンテナと最大幅を設定 */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">メンバー</h1>
+        <h1 className="text-2xl font-bold">Members</h1>
          {/* フェッチ中スピナー */}
          {isFetching && <Loader2 className="animate-spin h-5 w-5 text-muted-foreground" />}
       </div>

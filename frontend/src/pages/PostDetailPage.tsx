@@ -26,6 +26,7 @@ import type { Post } from '@/types/post';
 import { CommentForm } from '@/components/CommentForm';
 import { CommentList } from '@/components/CommentList';
 import { formatRelativeTime } from '@/lib/utils';
+import useDocumentTitle from '@/hooks/useDocumentTitle'; // ★ カスタムフックをインポート
 // ★★★ エラー通知用 (例: Sonner トースト) ★★★
 // import { toast } from "sonner";
 
@@ -65,6 +66,7 @@ const fetchPost = async (postId: string | undefined): Promise<Post> => {
 
 
 function PostDetailPage() {
+  useDocumentTitle('Aqsh Terrace | Post'); // ★ フックを呼び出す
   const { postId } = useParams<{ postId: string }>();
   const currentUser = useAuthStore((state) => state.user);
   const navigate = useNavigate();
@@ -151,11 +153,9 @@ function PostDetailPage() {
   };
 
   // --- レンダリング ---
-  // ★ レンダリング前に post オブジェクトをログに出力してみる ★
-  console.log("Rendering PostDetailPage with post:", post);
 
   return (
-    <div className="max-w-3xl p-4 space-y-6">
+    <div className="container max-w-[1360px] p-4 space-y-6">
       <Button asChild variant="outline" size="sm">
          <Link to="/">← 投稿一覧へ戻る</Link>
       </Button>

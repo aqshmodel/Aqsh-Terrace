@@ -28,6 +28,7 @@ import { formatRelativeTime } from '@/lib/utils';
 import { PostList } from '@/components/PostList'; // 名前付きインポート
 import useAuthStore from '@/stores/authStore';
 import { useState, useEffect, useCallback } from 'react'; // useCallback をインポート
+import useDocumentTitle from '@/hooks/useDocumentTitle'; // ★ カスタムフックをインポート
 // import { Helmet } from 'react-helmet-async'; // 未使用
 // import { PostEditDialog } from '@/components/PostEditDialog'; // 未使用
 // import { PostDeleteAlert } from '@/components/PostDeleteAlert'; // 未使用
@@ -99,6 +100,9 @@ function UserProfilePage() {
         staleTime: 5 * 60 * 1000,
     });
 
+    // ★ データ取得後にタイトルを設定
+    useDocumentTitle(profile?.name ? `Aqsh Terrace | ${profile.name}さん` : 'Aqsh Terrace | ユーザープロフィール');
+
     // ユーザー投稿リストのクエリキー
     const userPostsQueryKey = ['userPosts', userId, postPage];
 
@@ -146,17 +150,6 @@ function UserProfilePage() {
             queryClient.invalidateQueries({ queryKey: ['user', userId] });
         }
     });
-
-    // ブラウザのタイトルを設定
-    useEffect(() => {
-        const originalTitle = document.title;
-        if (profile?.name) {
-            document.title = `${profile.name}さんのプロフィール | コミュニティプラットフォーム`;
-        }
-        return () => {
-           document.title = originalTitle;
-        };
-    }, [profile?.name]);
 
     // いいね成功時のコールバック
     const handleLikeToggleSuccess = useCallback((postId: number, newLikedStatus: boolean, newLikesCount: number) => {

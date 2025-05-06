@@ -7,6 +7,10 @@ export default {
   ],
   theme: {
   	extend: {
+			container: {
+      center: true, // ← これが true であることを確認してください
+      // padding: '1rem', // 必要に応じてパディング設定
+    },
   		borderRadius: {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
