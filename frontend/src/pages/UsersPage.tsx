@@ -9,16 +9,32 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; //
 import { Terminal, Loader2, MapPin, Briefcase, Users, MessageSquare } from "lucide-react"; // アイコンを追加
 import axios, { AxiosError } from 'axios';
 import { formatRelativeTime } from '@/lib/utils'; // 日付フォーマット関数
-import { SimpleUserInfo, PaginatedUsersResponse } from '@/types/user'; // 新しい型定義をインポート
+import { SimpleUserInfo } from '@/types/user'; // 新しい型定義をインポート
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
-// ユーザーリストを取得する非同期関数 (ページ番号を受け取る)
+// APIレスポンスの型定義
+interface PaginatedUsersResponse {
+    current_page: number;
+    data: SimpleUserInfo[];
+    first_page_url: string | null;
+    from: number | null;
+    last_page: number;
+    last_page_url: string | null;
+    links: Array<{ url: string | null; label: string; active: boolean }>;
+    next_page_url: string | null;
+    path: string;
+    per_page: number;
+    prev_page_url: string | null;
+    to: number | null;
+    total: number;
+}
+
+// ユーザーリストを取得する非同期関数
 const fetchUsers = async (page = 1): Promise<PaginatedUsersResponse> => {
-  console.log(`Fetching users for page: ${page}`);
   const response = await apiClient.get<PaginatedUsersResponse>('/api/users', {
     params: { page: page }
   });
-  return response.data; // API レスポンスがページネーション構造になっている想定
+  return response.data;
 };
 
 function UsersPage() {
@@ -67,14 +83,10 @@ function UsersPage() {
       return <div className="p-4 text-center text-muted-foreground">ユーザーデータを取得できませんでした。</div>;
   }
 
-  // ★★★ postsData が確定してから中身にアクセス ★★★
-  const currentPageNumber = usersData?.meta?.current_page ?? 1;
-  const lastPageNumber = usersData?.meta?.last_page ?? 1;
-
-  // ★ ユーザーデータが空の場合の表示 ★
-  if (usersData && usersData.data.length === 0 && currentPageNumber === 1) {
+  // ユーザーデータが空の場合の表示
+  if (usersData && usersData.data.length === 0 && usersData.current_page === 1) {
      return <div className="p-4 text-center text-muted-foreground">ユーザーが見つかりません。</div>;
-  } else if (usersData && usersData.data.length === 0 && currentPageNumber > 1) {
+  } else if (usersData && usersData.data.length === 0 && usersData.current_page > 1) {
      return <div className="p-4 text-center text-muted-foreground">このページにはユーザーがいません。</div>;
   }
 
@@ -82,7 +94,7 @@ function UsersPage() {
   return (
     <div className="p-4"> {/* コンテナと最大幅を設定 */}
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">ユーザー一覧</h1>
+        <h1 className="text-2xl font-bold">メンバー</h1>
          {/* フェッチ中スピナー */}
          {isFetching && <Loader2 className="animate-spin h-5 w-5 text-muted-foreground" />}
       </div>
@@ -128,22 +140,22 @@ function UsersPage() {
       </div>
 
       {/* ページネーション UI */}
-      {usersData?.meta && lastPageNumber > 1 && (
+      {usersData && usersData.last_page > 1 && (
         <div className="mt-8 flex justify-center items-center space-x-2">
           <Button
             variant="outline" size="sm"
             onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-            disabled={!usersData?.links?.prev || isFetching}
+            disabled={!usersData.prev_page_url || isFetching}
           >
             前へ
           </Button>
           <span className="text-sm text-muted-foreground tabular-nums">
-            ページ {currentPageNumber ?? '?'} / {lastPageNumber ?? '?'}
+            ページ {usersData.current_page} / {usersData.last_page}
           </span>
           <Button
             variant="outline" size="sm"
-            onClick={() => setCurrentPage((prev) => prev + 1)}
-            disabled={!usersData?.links?.next || isFetching}
+            onClick={() => setCurrentPage((prev) => Math.min(prev + 1, usersData.last_page))}
+            disabled={!usersData.next_page_url || isFetching}
           >
             次へ
           </Button>

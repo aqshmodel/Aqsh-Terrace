@@ -253,7 +253,7 @@ function Layout() {
           {/* 左側: ロゴ/サイト名 */}
           <Link to="/" className="mr-4 md:mr-6 flex items-center space-x-2 font-bold text-lg hover:opacity-80 transition-opacity">
             {/* <YourLogoComponent className="h-6 w-6" /> */}
-            <span>コミュニティ</span>
+            <span>Take a chance on yourself</span>
           </Link>
 
           {/* 中央ナビゲーション (中画面以上で表示) */}
@@ -362,8 +362,8 @@ function Layout() {
              </p>
              {/* フッターナビゲーションなど */}
              <nav className="flex gap-4 sm:gap-6">
-                 <Link to="/terms" className="text-xs hover:underline underline-offset-4 text-muted-foreground">利用規約</Link>
-                 <Link to="/privacy" className="text-xs hover:underline underline-offset-4 text-muted-foreground">プライバシーポリシー</Link>
+                 <Link to="https://aqsh.co.jp/aqsh-termofservice/" className="text-xs hover:underline underline-offset-4 text-muted-foreground">利用規約</Link>
+                 <Link to="https://aqsh.co.jp/privacypolicy/" className="text-xs hover:underline underline-offset-4 text-muted-foreground">プライバシーポリシー</Link>
              </nav>
           </div>
       </footer>

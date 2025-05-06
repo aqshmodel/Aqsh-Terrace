@@ -27,7 +27,7 @@ class UserController extends Controller
             ->select(['id', 'name', 'profile_image_url', 'headline', 'location', 'created_at']) // 基本情報
             ->withCount(['posts', 'followers', 'followings']) // カウント情報
             ->latest() // 例: 登録が新しい順
-            ->paginate($request->query('per_page', 15)); // 1ページあたり15件
+            ->paginate($request->query('per_page', 10)); // 1ページあたり15件
 
         // ★ SimpleUserResource を使って Collection として返す ★
         // return SimpleUserResource::collection($users);
