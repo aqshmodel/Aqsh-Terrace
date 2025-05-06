@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 
-interface UserData {
+export type UserData = {
   id: number;
   name: string;
-  email?: string; // email はオプショナルのまま
-}
+  email?: string; // emailはオプショナルに戻す
+  // 他の必要なプロパティを追加
+};
 
 interface AuthState {
   isLoggedIn: boolean;
