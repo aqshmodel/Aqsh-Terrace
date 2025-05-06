@@ -1,0 +1,90 @@
+# docker-compose.yml (Nginx を追加・設定)
+version: '3' # Compose ファイルのバージョン指定 (推奨)
+services:
+    # --- laravel.test サービス (PHP アプリケーション) ---
+    laravel.test:
+        build:
+            context: ./docker/8.4 # PHP 8.4 用の設定ディレクトリ
+            dockerfile: Dockerfile
+            args:
+                WWWUSER: '${UID:-1000}'
+                # ホストの環境変数 $GID を参照。なければデフォルト値 1000 を使用
+                WWWGROUP: '${GID:-1000}'
+        image: sail-8.4/app # ビルドされるイメージ名
+        extra_hosts:
+            - 'host.docker.internal:host-gateway' # Dockerホストへの接続用
+        ports:
+            # - '${APP_PORT:-80}:80'
+            # - '${VITE_PORT:-5173}:${VITE_PORT:-5173}' # Vite開発サーバーのポート公開 (必要に応じて残すか、削除/コメントアウト)
+            - '8080:8080' # ← ★ Reverb 用のポートフォワーディングを追加
+        environment:
+            WWWUSER: '1337' # Dockerfile で sail ユーザーに割り当てた固定 UID
+            LARAVEL_SAIL: 1
+            XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
+            XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
+            IGNITION_LOCAL_SITES_PATH: '${PWD}'
+        volumes:
+            - '.:/var/www/html' # プロジェクト全体をコンテナにマウント
+        networks:
+            - sail # sail ネットワークに接続
+        depends_on: # このサービスが依存する他のサービス
+            - mysql # mysql サービスが起動してから起動する
+
+    # --- nginx サービス (Web サーバー) --- ★★★ このセクションを追加 ★★★
+    nginx:
+        image: nginx:stable-alpine # 公式の Nginx イメージ (軽量版) を使用
+        ports:
+            - '${APP_PORT:-80}:80' # ホストの 80 番ポートを Nginx の 80 番ポートにマッピング
+            # - '${FORWARD_SSL_PORT:-443}:443' # HTTPS を使用する場合はこちらも有効化
+        environment:
+            - LARAVEL_SAIL=1
+            - NGINX_PORT=80 # コンテナ内の Nginx がリッスンするポート
+            # - SSL_PORT=443 # HTTPS 用
+        volumes:
+            - 'sail-nginx:/etc/nginx/certs' # SSL 証明書用ボリューム (HTTPS使用時)
+            - './docker/nginx/default.conf:/etc/nginx/conf.d/default.conf' # 変更点: conf.d にマウント
+            # - './vendor/laravel/sail/runtimes/nginx/templates:/etc/nginx/templates' # Sail 提供のテンプレート
+            - '.:/var/www/html' # ★ Nginx からも静的ファイル等にアクセスできるようマウント ★
+        depends_on: # このサービスが依存する他のサービス
+            - laravel.test # PHP (laravel.test) が起動してから起動する
+            - mysql        # MySQL が起動してから起動する
+        networks:
+            - sail # sail ネットワークに接続
+
+    # --- mysql サービス (データベース) ---
+    mysql:
+        image: 'mysql/mysql-server:8.0'
+        ports:
+            - '${FORWARD_DB_PORT:-3306}:3306' # ホストから DB への直接接続用ポート
+        environment:
+            MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
+            MYSQL_ROOT_HOST: '%'
+            MYSQL_DATABASE: '${DB_DATABASE}'
+            MYSQL_USER: '${DB_USERNAME}'
+            MYSQL_PASSWORD: '${DB_PASSWORD}'
+            MYSQL_ALLOW_EMPTY_PASSWORD: 1
+        volumes:
+            - 'sail-mysql:/var/lib/mysql' # DBデータを永続化するボリューム
+            - './docker/mysql/create-testing-database.sh:/docker-entrypoint-initdb.d/10-create-testing-database.sh' # テストDB作成スクリプト
+        networks:
+            - sail # sail ネットワークに接続
+        healthcheck: # コンテナのヘルスチェック設定
+            test:
+                - CMD
+                - mysqladmin
+                - ping
+                - '-p${DB_PASSWORD}'
+            retries: 3
+            timeout: 5s
+
+# --- ネットワーク定義 ---
+networks:
+    sail:
+        driver: bridge # デフォルトのブリッジネットワーク
+
+# --- ボリューム定義 ---
+volumes:
+    sail-mysql:
+        driver: local # MySQL データ用ボリューム
+    sail-nginx: # ★★★ Nginx 用のボリュームを追加 ★★★
+        driver: local # Nginx 関連ファイル (証明書など) 用ボリューム
