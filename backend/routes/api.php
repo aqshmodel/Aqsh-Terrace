@@ -94,6 +94,10 @@ Route::middleware('auth:sanctum')->group(function () {
         // PUT /api/profile (基本情報更新)
         Route::put('/', [ProfileController::class, 'update'])->name('update');
 
+        // ★★★ アバター関連ルートを追加 ★★★
+        Route::post('/avatar', [ProfileController::class, 'updateAvatar'])->name('avatar.update'); // POST でファイルアップロード
+        Route::delete('/avatar', [ProfileController::class, 'deleteAvatar'])->name('avatar.delete'); // DELETE で削除
+
         // --- スキル ---
         // PUT /api/profile/skills (スキル一括更新)
         Route::put('/skills', [ProfileController::class, 'updateSkills'])->name('skills.update');

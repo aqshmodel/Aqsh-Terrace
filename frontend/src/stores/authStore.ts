@@ -4,6 +4,7 @@ export type UserData = {
   id: number;
   name: string;
   email?: string; // emailはオプショナルに戻す
+  profile_image_url?: string | null; // ★ 追加
   // 他の必要なプロパティを追加
 };
 

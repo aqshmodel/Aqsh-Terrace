@@ -108,7 +108,7 @@ function UsersPage() {
           <Link key={user.id} to={`/users/${user.id}`} className="block hover:shadow-md transition-shadow duration-200">
             <Card className="h-full flex flex-col"> {/* 高さを揃える */}
               <CardHeader className="flex flex-row items-center gap-4 pb-2">
-                <Avatar className="h-12 w-12 border">
+                <Avatar className="h-20 w-20 border">
                   <AvatarImage src={user.profile_image_url ?? undefined} alt={user.name} />
                   <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>

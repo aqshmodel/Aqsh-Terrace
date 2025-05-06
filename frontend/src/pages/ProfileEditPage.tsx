@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 // ★ アイコン整理: Search, ChevronsUpDown は不要に
-import { Loader2, Terminal, Plus, Edit, Trash2, Briefcase, Calendar, Building, GraduationCap, Lightbulb, X, Check, Star, BookOpen, Link as LinkIcon, ExternalLink } from 'lucide-react';
+import { Loader2, Terminal, Plus, Edit, Trash2, Briefcase, Calendar, Building, GraduationCap, Lightbulb, X, Check, Star, BookOpen, Link as LinkIcon, ExternalLink, User } from 'lucide-react';
 import useAuthStore from '@/stores/authStore';
 import { Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -45,6 +45,7 @@ import { Badge } from "@/components/ui/badge";
 import { PortfolioDialog } from '@/components/dialogs/PortfolioDialog';
 import { PortfolioFormData } from '@/components/forms/PortfolioForm';
 import useDocumentTitle from '@/hooks/useDocumentTitle'; // ★ カスタムフックをインポート
+import { AvatarUpload } from '@/components/profile/AvatarUpload'; // ★ インポート
 
 // --- API 関数 ---
 const fetchMyProfile = async (): Promise<UserProfile> => {
@@ -136,6 +137,23 @@ const updatePortfolioItem = async ({ id, data }: { id: number; data: PortfolioFo
 const deletePortfolioItem = async (id: number): Promise<void> => {
     await apiClient.delete(`/api/profile/portfolio-items/${id}`);
 };
+
+// ★ アバター更新 API 関数
+const uploadAvatar = async (file: File): Promise<UserProfile> => {
+    const formData = new FormData();
+    formData.append('avatar', file); // キーは 'avatar' (UpdateAvatarRequest と合わせる)
+
+    // Content-Type は axios が FormData から自動設定する
+    const response = await apiClient.post<{ data: UserProfile }>('/api/profile/avatar', formData);
+    return response.data.data;
+};
+// ★ アバター削除 API 関数
+const deleteAvatar = async (): Promise<UserProfile> => {
+     // レスポンスボディは更新後の UserResource を期待
+    const response = await apiClient.delete<{ data: UserProfile }>('/api/profile/avatar');
+    return response.data.data;
+};
+
 
 function ProfileEditPage() {
     const { user, isLoading: isAuthLoading, isLoggedIn } = useAuthStore();
@@ -243,6 +261,54 @@ function ProfileEditPage() {
         },
 
     });
+
+    const updateAvatarMutation = useMutation<UserProfile, Error, File, unknown>({
+        mutationFn: uploadAvatar,
+        onSuccess: (updatedProfile) => {
+            // キャッシュ更新
+            queryClient.setQueryData<UserProfile>(['myProfile'], updatedProfile);
+            if (user?.id) {
+                queryClient.setQueryData(['user', user.id.toString()], updatedProfile);
+                // 他のユーザーリストなどのキャッシュも必要なら無効化
+                 queryClient.invalidateQueries({ queryKey: ['users'] }); // UsersPage用
+                 queryClient.invalidateQueries({ queryKey: ['posts'] }); // HomePageなど投稿リスト用
+            }
+            // Zustand ストアのユーザー情報も更新 (任意だが推奨)
+            // useAuthStore.setState({ user: { ...user, profile_image_url: updatedProfile.profile_image_url }});
+
+            toast({ title: "成功", description: "プロフィール画像が更新されました。" });
+        },
+        onError: (error) => {
+            console.error("アバター更新エラー:", error);
+            const errorMessage = (error as any)?.response?.data?.errors?.avatar?.[0] // バリデーションエラー
+                            || (error as any)?.response?.data?.message
+                            || "プロフィール画像の更新に失敗しました。";
+            toast({ title: "エラー", description: errorMessage, variant: "destructive" });
+        }
+    });
+
+    // ★ アバター削除 Mutation
+    const deleteAvatarMutation = useMutation<UserProfile, Error, void, unknown>({
+        mutationFn: deleteAvatar,
+        onSuccess: (updatedProfile) => {
+            // キャッシュ更新
+            queryClient.setQueryData<UserProfile>(['myProfile'], updatedProfile);
+            if (user?.id) {
+                 queryClient.setQueryData(['user', user.id.toString()], updatedProfile);
+                 queryClient.invalidateQueries({ queryKey: ['users'] });
+                 queryClient.invalidateQueries({ queryKey: ['posts'] });
+             }
+             // Zustand ストアも更新
+             // useAuthStore.setState({ user: { ...user, profile_image_url: null }});
+            toast({ title: "成功", description: "プロフィール画像が削除されました。" });
+        },
+        onError: (error) => {
+            console.error("アバター削除エラー:", error);
+            const errorMessage = (error as any)?.response?.data?.message || "プロフィール画像の削除に失敗しました。";
+            toast({ title: "エラー", description: errorMessage, variant: "destructive" });
+        }
+    });
+
 
     // --- 職務経歴 CRUD Mutation ---
     // ★ 作成 Mutation
@@ -604,6 +670,14 @@ function ProfileEditPage() {
         }
     };
 
+    // ★ AvatarUpload コンポーネントに渡す非同期関数ラッパー
+    const handleAvatarUpload = async (file: File) => {
+        await updateAvatarMutation.mutateAsync(file); // mutateAsync で Promise を返す
+    };
+    const handleAvatarDelete = async () => {
+        await deleteAvatarMutation.mutateAsync(); // mutateAsync を使う
+    };
+
     // --- ローディング・エラーハンドリング ---
     if (isAuthLoading) { // 認証状態チェック中
         return <div className="flex justify-center items-center h-64"><Loader2 className="h-16 w-16 animate-spin text-muted-foreground" /></div>;
@@ -640,13 +714,27 @@ function ProfileEditPage() {
                     <CardTitle>基本情報</CardTitle>
                     <CardDescription>あなたのアカウント情報を編集します。</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <BasicInfoForm
-                        initialData={currentProfile}
-                        metadata={metadata}
-                        onSubmit={updateProfileMutation.mutate}
-                        isPending={updateProfileMutation.isPending}
-                    />
+                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6"> {/* グリッドレイアウトに変更 */}
+                     {/* アバターアップロード (左カラム) */}
+                    <div className="md:col-span-1 flex justify-center md:justify-start pt-4">
+                        <AvatarUpload
+                            currentImageUrl={currentProfile?.profile_image_url ?? null}
+                            onUpload={handleAvatarUpload}
+                            onDelete={handleAvatarDelete}
+                            isUploading={updateAvatarMutation.isPending}
+                            isDeleting={deleteAvatarMutation.isPending}
+                            userName={currentProfile?.name}
+                        />
+                    </div>
+                     {/* 基本情報フォーム (右カラム) */}
+                    <div className="md:col-span-2">
+                         <BasicInfoForm
+                            initialData={currentProfile}
+                            metadata={metadata}
+                            onSubmit={updateProfileMutation.mutate}
+                            isPending={updateProfileMutation.isPending}
+                        />
+                    </div>
                 </CardContent>
             </Card>
 
