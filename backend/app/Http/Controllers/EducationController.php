@@ -1,5 +1,5 @@
 <?php
-
+//backend/app/Http/Controllers/EducationController.php
 namespace App\Http\Controllers;
 
 use App\Models\Education; // Education モデルをインポート

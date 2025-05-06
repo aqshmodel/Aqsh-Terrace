@@ -9,18 +9,20 @@ import {
 } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 // ★ アイコン追加: Plus, Edit, Trash2, Briefcase, Calendar, Building
-import { Loader2, Terminal, Plus, Edit, Trash2, Briefcase, Calendar, Building } from 'lucide-react';
+import { Loader2, Terminal, Plus, Edit, Trash2, Briefcase, Calendar, Building, GraduationCap } from 'lucide-react';
 import useAuthStore from '@/stores/authStore';
 import { Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
-// ★ Experience 型もインポート
-import { UserProfile, Experience } from '@/types/user';
+import { UserProfile, Experience, Education } from '@/types/user';
 import { BasicInfoForm, ProfileFormData } from '@/components/forms/BasicInfoForm';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button'; // Button をインポート
 import { ExperienceDialog } from '@/components/dialogs/ExperienceDialog';
 import { ExperienceFormData } from '@/components/forms/ExperienceForm';
+// ★ 学歴用フォーム・ダイアログをインポート
+import { EducationDialog } from '@/components/dialogs/EducationDialog';
+import { EducationFormData } from '@/components/forms/EducationForm';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -78,6 +80,23 @@ const deleteExperience = async (id: number): Promise<void> => {
     await apiClient.delete(`/api/profile/experiences/${id}`);
 };
 
+// ★ 学歴取得・CRUD API 関数を追加
+const fetchMyEducations = async (): Promise<Education[]> => {
+    const response = await apiClient.get<{ data: Education[] }>('/api/profile/educations');
+    return response.data.data;
+};
+const createEducation = async (data: EducationFormData): Promise<Education> => {
+    const response = await apiClient.post<{ data: Education }>('/api/profile/educations', data);
+    return response.data.data;
+};
+const updateEducation = async ({ id, data }: { id: number; data: EducationFormData }): Promise<Education> => {
+    const response = await apiClient.put<{ data: Education }>(`/api/profile/educations/${id}`, data);
+    return response.data.data;
+};
+const deleteEducation = async (id: number): Promise<void> => {
+    await apiClient.delete(`/api/profile/educations/${id}`);
+};
+
 function ProfileEditPage() {
     const { user, isLoading: isAuthLoading, isLoggedIn } = useAuthStore();
     const queryClient = useQueryClient();
@@ -86,9 +105,13 @@ function ProfileEditPage() {
     // --- ダイアログ状態管理 ---
     const [isExperienceDialogOpen, setIsExperienceDialogOpen] = useState(false);
     const [editingExperience, setEditingExperience] = useState<Experience | null>(null);
-    // ★ 削除確認ダイアログの状態
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
     const [deletingExperienceId, setDeletingExperienceId] = useState<number | null>(null);
+    // ★ 学歴用ダイアログの状態を追加
+    const [isEducationDialogOpen, setIsEducationDialogOpen] = useState(false);
+    const [editingEducation, setEditingEducation] = useState<Education | null>(null);
+    const [isDeleteEducationDialogOpen, setIsDeleteEducationDialogOpen] = useState(false);
+    const [deletingEducationId, setDeletingEducationId] = useState<number | null>(null);
 
     // --- データ取得 ---
     const { data: currentProfile, isLoading: isLoadingProfile, error: profileError } = useQuery<UserProfile, Error>({
@@ -113,6 +136,14 @@ function ProfileEditPage() {
         queryFn: fetchMyExperiences,
         enabled: isLoggedIn, // ログイン時のみ有効
         staleTime: 5 * 60 * 1000, // 5分キャッシュ
+    });
+
+    // ★ 学歴データ取得 Query を追加
+    const { data: educations, isLoading: isLoadingEducations, error: educationsError } = useQuery<Education[], Error>({
+        queryKey: ['myEducations'], // 学歴用のキャッシュキー
+        queryFn: fetchMyEducations,
+        enabled: isLoggedIn,
+        staleTime: 5 * 60 * 1000,
     });
 
 
@@ -198,6 +229,55 @@ function ProfileEditPage() {
         }
     });
 
+    // ★ 学歴 CRUD Mutation を追加
+    const createEducationMutation = useMutation<Education, Error, EducationFormData, unknown>({
+        mutationFn: createEducation,
+        onSuccess: (newEducation) => {
+            queryClient.setQueryData<Education[]>(['myEducations'], (oldData = []) => [newEducation, ...oldData]);
+            setIsEducationDialogOpen(false);
+            toast({ title: "成功", description: "学歴が追加されました。" });
+        },
+        onError: (error) => {
+             console.error("学歴追加エラー:", error);
+             const errorMessage = (error as any)?.response?.data?.message || "学歴の追加に失敗しました。";
+             toast({ title: "エラー", description: errorMessage, variant: "destructive" });
+        }
+    });
+    const updateEducationMutation = useMutation<Education, Error, { id: number; data: EducationFormData }, unknown>({
+        mutationFn: updateEducation,
+        onSuccess: (updatedEducation) => {
+            queryClient.setQueryData<Education[]>(['myEducations'], (oldData = []) =>
+                oldData.map(edu => edu.id === updatedEducation.id ? updatedEducation : edu)
+            );
+            setIsEducationDialogOpen(false);
+            setEditingEducation(null);
+            toast({ title: "成功", description: "学歴が更新されました。" });
+        },
+         onError: (error) => {
+             console.error("学歴更新エラー:", error);
+             const errorMessage = (error as any)?.response?.data?.message || "学歴の更新に失敗しました。";
+             toast({ title: "エラー", description: errorMessage, variant: "destructive" });
+        }
+    });
+    const deleteEducationMutation = useMutation<void, Error, number, unknown>({
+        mutationFn: deleteEducation,
+        onSuccess: (_, deletedId) => {
+            queryClient.setQueryData<Education[]>(['myEducations'], (oldData = []) =>
+                oldData.filter(edu => edu.id !== deletedId)
+            );
+            setIsDeleteEducationDialogOpen(false);
+            setDeletingEducationId(null);
+            toast({ title: "成功", description: "学歴が削除されました。" });
+        },
+        onError: (error) => {
+             console.error("学歴削除エラー:", error);
+             const errorMessage = (error as any)?.response?.data?.message || "学歴の削除に失敗しました。";
+             toast({ title: "エラー", description: errorMessage, variant: "destructive" });
+             setIsDeleteEducationDialogOpen(false);
+             setDeletingEducationId(null);
+        }
+    });
+
     // --- ボタンハンドラ ---
     const handleAddNewExperience = () => {
         setEditingExperience(null); // 新規追加モード
@@ -220,6 +300,24 @@ function ProfileEditPage() {
         }
     };
 
+    // ★ 学歴用ボタンハンドラを追加
+    const handleAddNewEducation = () => {
+        setEditingEducation(null);
+        setIsEducationDialogOpen(true);
+    };
+    const handleEditEducation = (education: Education) => {
+        setEditingEducation(education);
+        setIsEducationDialogOpen(true);
+    };
+    const handleDeleteEducationClick = (id: number) => {
+        setDeletingEducationId(id);
+        setIsDeleteEducationDialogOpen(true);
+    };
+     const confirmDeleteEducation = () => {
+        if (deletingEducationId) {
+            deleteEducationMutation.mutate(deletingEducationId);
+        }
+    };
 
     // --- ローディング・エラーハンドリング ---
     if (isAuthLoading) { // 認証状態チェック中
@@ -229,12 +327,12 @@ function ProfileEditPage() {
         return <Navigate to="/login" replace />;
     }
     // ★ データ取得中のローディング表示を統合
-    if (isLoadingProfile || isLoadingMetadata || isLoadingExperiences) {
+    if (isLoadingProfile || isLoadingMetadata || isLoadingExperiences || isLoadingEducations) {
          return <div className="flex justify-center items-center h-64"><Loader2 className="h-16 w-16 animate-spin text-muted-foreground" /></div>;
     }
     // ★ データ取得エラー表示を統合
-    if (profileError || metadataError || experiencesError || !currentProfile || !metadata) {
-         const errorMsg = profileError?.message || metadataError?.message || experiencesError?.message || 'データの取得に失敗しました。';
+    if (profileError || metadataError || experiencesError || educationsError || !currentProfile || !metadata) {
+         const errorMsg = profileError?.message || metadataError?.message || experiencesError?.message || educationsError?.message || 'データの取得に失敗しました。';
          return (
             <div className="container mx-auto max-w-3xl px-4 py-8">
                 <Alert variant="destructive">
@@ -320,10 +418,52 @@ function ProfileEditPage() {
                  </CardContent>
              </Card>
 
-             {/* --- 学歴セクション (開発中) --- */}
+             {/* --- 学歴セクション --- ★ 更新 ★ */}
              <Card className="mt-6">
-                <CardHeader><CardTitle>学歴</CardTitle></CardHeader>
-                <CardContent><p className="text-muted-foreground italic">（開発中）</p></CardContent>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle>学歴</CardTitle>
+                        <CardDescription>最終学歴やその他学んだ経験を入力してください。</CardDescription>
+                    </div>
+                     <Button variant="outline" size="sm" onClick={handleAddNewEducation}>
+                         <Plus className="h-4 w-4 mr-2" />
+                         新規追加
+                     </Button>
+                </CardHeader>
+                <CardContent>
+                    {/* ★ 学歴リスト表示 */}
+                    {educations && educations.length > 0 ? (
+                        <ul className="space-y-4">
+                            {educations.map(edu => (
+                                <li key={edu.id} className="border-b pb-4 last:border-b-0 last:pb-0">
+                                    <div className="flex justify-between items-start mb-1">
+                                        <div>
+                                            <p className="font-semibold">{edu.school_name}</p>
+                                            {edu.major && <p className="text-sm text-muted-foreground">{edu.major}</p>}
+                                            <p className="text-xs text-muted-foreground mt-0.5"><Calendar className="inline h-3 w-3 mr-1" />{edu.start_date} ～ {edu.end_date ?? '卒業'}</p>
+                                        </div>
+                                         {/* ★ 編集・削除ボタン */}
+                                        <div className="flex space-x-2 flex-shrink-0 ml-4">
+                                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditEducation(edu)}>
+                                                 <Edit className="h-4 w-4" />
+                                             </Button>
+                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteEducationClick(edu.id)}>
+                                                 <Trash2 className="h-4 w-4" />
+                                             </Button>
+                                        </div>
+                                    </div>
+                                    {edu.description && (
+                                        <p className="mt-1 text-sm whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none">{edu.description}</p>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                     ) : (
+                         <p className="text-muted-foreground italic text-center py-4">
+                             学歴はまだ登録されていません。「新規追加」ボタンから登録できます。
+                         </p>
+                     )}
+                </CardContent>
              </Card>
 
              {/* --- スキルセクション (開発中) --- */}
@@ -352,6 +492,15 @@ function ProfileEditPage() {
                 />
             )}
 
+            {/* ★ EducationDialog をレンダリング */}
+            <EducationDialog
+                isOpen={isEducationDialogOpen}
+                setIsOpen={setIsEducationDialogOpen}
+                editingEducation={editingEducation}
+                createMutation={createEducationMutation}
+                updateMutation={updateEducationMutation}
+            />
+
             {/* ★ 削除確認 AlertDialog をレンダリング */}
             <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <AlertDialogContent>
@@ -369,6 +518,29 @@ function ProfileEditPage() {
                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90" // 削除ボタンの色
                     >
                         {deleteExperienceMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        削除する
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+             {/* ★ 学歴削除確認 AlertDialog をレンダリング */}
+            <AlertDialog open={isDeleteEducationDialogOpen} onOpenChange={setIsDeleteEducationDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>削除確認</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        この学歴を削除してもよろしいですか？この操作は元に戻せません。
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setDeletingEducationId(null)}>キャンセル</AlertDialogCancel>
+                    <AlertDialogAction
+                         onClick={confirmDeleteEducation}
+                         disabled={deleteEducationMutation.isPending}
+                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                        {deleteEducationMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         削除する
                     </AlertDialogAction>
                     </AlertDialogFooter>

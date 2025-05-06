@@ -1,5 +1,5 @@
 <?php
-
+//backend/app/Policies/EducationPolicy.php
 namespace App\Policies;
 
 use App\Models\Education;

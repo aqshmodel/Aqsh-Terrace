@@ -1,5 +1,5 @@
 <?php
-
+//backend/app/Http/Requests/UpdateEducationRequest.php
 namespace App\Http\Requests;
 
 // use App\Models\Education; // 認可で使う場合
@@ -29,8 +29,8 @@ class UpdateEducationRequest extends FormRequest
         return [
             'school_name' => ['sometimes', 'required', 'string', 'max:255'],
             'major' => ['nullable', 'string', 'max:255'],
-            'start_date' => ['sometimes', 'required', 'date_format:Y-m'],
-            'end_date' => ['nullable', 'date_format:Y-m', 'after_or_equal:start_date'],
+            'start_date' => ['required', 'date'], // ★ 'date' ルールに変更
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'], // ★ 'date' ルールに変更
             'description' => ['nullable', 'string', 'max:1000'],
         ];
     }
@@ -62,8 +62,6 @@ class UpdateEducationRequest extends FormRequest
 
          return [
              'start_date.required' => '開始年月は必須です。',
-             'start_date.date_format' => '開始年月は YYYY-MM 形式で入力してください。',
-             'end_date.date_format' => '終了年月は YYYY-MM 形式で入力してください。',
              'end_date.after_or_equal' => '終了年月は開始年月以降の日付を入力してください。',
          ];
      }

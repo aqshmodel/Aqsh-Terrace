@@ -1,5 +1,5 @@
 <?php
-
+//backend/app/Http/Requests/StoreEducationRequest.php
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
@@ -26,8 +26,8 @@ class StoreEducationRequest extends FormRequest
         return [
             'school_name' => ['required', 'string', 'max:255'],
             'major' => ['nullable', 'string', 'max:255'], // 学部・専攻
-            'start_date' => ['required', 'date_format:Y-m'], // YYYY-MM 形式を期待
-            'end_date' => ['nullable', 'date_format:Y-m', 'after_or_equal:start_date'], // 開始日以降
+            'start_date' => ['required', 'date'], // ★ 'date' ルールに変更
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'], // ★ 'date' ルールに変更
             'description' => ['nullable', 'string', 'max:1000'], // 備考
         ];
     }
@@ -57,8 +57,6 @@ class StoreEducationRequest extends FormRequest
     {
         return [
             'start_date.required' => '開始年月は必須です。',
-            'start_date.date_format' => '開始年月は YYYY-MM 形式で入力してください。',
-            'end_date.date_format' => '終了年月は YYYY-MM 形式で入力してください。',
             'end_date.after_or_equal' => '終了年月は開始年月以降の日付を入力してください。',
         ];
     }
