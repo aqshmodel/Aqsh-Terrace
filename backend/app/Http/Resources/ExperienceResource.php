@@ -20,6 +20,7 @@ class ExperienceResource extends JsonResource
 
         return [
             'id' => $this->id,
+            'user_id' => $this->user_id, // 念のため
             'company_name' => $this->company_name,
             'position' => $this->position,
             'start_date' => $this->start_date?->format('Y-m'), // YYYY-MM 形式

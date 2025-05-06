@@ -1,5 +1,5 @@
 <?php
-
+///Users/tsukadatakahiro/Python/app/aqsh-terrace/backend/app/Policies/ExperiencePolicy.php
 namespace App\Policies;
 
 use App\Models\Experience;

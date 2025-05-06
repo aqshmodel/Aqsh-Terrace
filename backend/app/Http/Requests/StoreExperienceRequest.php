@@ -1,10 +1,11 @@
 <?php
-
+///Users/tsukadatakahiro/Python/app/aqsh-terrace/backend/app/Http/Requests/StoreExperienceRequest.php
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
+use App\Models\Experience; // Experience モデルをインポート
 
 class StoreExperienceRequest extends FormRequest
 {
@@ -14,7 +15,7 @@ class StoreExperienceRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return Auth::check();
     }
 
     /**
@@ -30,8 +31,8 @@ class StoreExperienceRequest extends FormRequest
         return [
             'company_name' => ['required', 'string', 'max:255'],
             'position' => ['required', 'string', 'max:255'],
-            'start_date' => ['required', 'date_format:Y-m'], // YYYY-MM 形式を期待
-            'end_date' => ['nullable', 'date_format:Y-m', 'after_or_equal:start_date'], // start_date 以降
+            'start_date' => ['required', 'date'], // ★ 'date' ルールに変更
+            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'], // ★ 'date' ルールに変更
             'industry' => ['nullable', 'string', Rule::in($validIndustries)],
             'company_size' => ['nullable', 'string', Rule::in($validCompanySizes)],
             'description' => ['nullable', 'string', 'max:65535'],
@@ -50,5 +51,18 @@ class StoreExperienceRequest extends FormRequest
         if ($this->has('end_date') && preg_match('/^\d{4}-\d{2}$/', $this->end_date)) {
              $this->merge(['end_date' => $this->end_date . '-01']);
         }
+    }
+
+
+/**
+     * バリデーションエラーメッセージをカスタマイズ (任意)
+     */
+    public function messages(): array
+    {
+        return [
+            'end_date.after_or_equal' => '終了年月は開始年月以降に設定してください。',
+            'industry.in' => '選択された業界が無効です。',
+            'company_size.in' => '選択された企業規模が無効です。',
+        ];
     }
 }
