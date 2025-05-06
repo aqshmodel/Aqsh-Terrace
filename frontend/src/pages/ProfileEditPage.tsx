@@ -1,5 +1,5 @@
 // frontend/src/pages/ProfileEditPage.tsx
-import React, { useState } from 'react'; // ★ useState をインポート
+import React, { useState, useEffect, useCallback } from 'react'; // ★ useEffect, useCallback 追加
 import {
     Card,
     CardContent,
@@ -8,13 +8,13 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-// ★ アイコン追加: Plus, Edit, Trash2, Briefcase, Calendar, Building
-import { Loader2, Terminal, Plus, Edit, Trash2, Briefcase, Calendar, Building, GraduationCap } from 'lucide-react';
+// ★ アイコン追加: Lightbulb, X, Search, Check, ChevronsUpDown
+import { Loader2, Terminal, Plus, Edit, Trash2, Briefcase, Calendar, Building, GraduationCap, Lightbulb, X, Search, Check, ChevronsUpDown } from 'lucide-react';
 import useAuthStore from '@/stores/authStore';
 import { Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
-import { UserProfile, Experience, Education } from '@/types/user';
+import { UserProfile, Experience, Education, UserSkill, Skill as SkillMaster } from '@/types/user';
 import { BasicInfoForm, ProfileFormData } from '@/components/forms/BasicInfoForm';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button'; // Button をインポート
@@ -33,6 +33,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { SkillItem } from '@/components/profile/SkillItem';
+import { SkillCombobox } from '@/components/profile/SkillCombobox';
+import { Label } from "@/components/ui/label";
 
 // --- API 関数 ---
 const fetchMyProfile = async (): Promise<UserProfile> => {
@@ -97,6 +100,23 @@ const deleteEducation = async (id: number): Promise<void> => {
     await apiClient.delete(`/api/profile/educations/${id}`);
 };
 
+// ★ スキル一括更新 API 関数
+const updateMySkills = async (skillsData: Array<{ skill_id: number; level: number | null; years_of_experience: number | null; description: string | null }>): Promise<UserSkill[]> => {
+    // API は UserResource (skills を含む) を返す想定だが、ここでは更新後のスキルリストを返すことにする
+    const response = await apiClient.put<{ data: UserProfile }>('/api/profile/skills', { skills: skillsData });
+     // UserResource から skills を抽出して返す
+     if (!response.data || !response.data.data || !response.data.data.skills) {
+        throw new Error('Updated skills data not found in response');
+     }
+    return response.data.data.skills;
+};
+
+// スキル検索API関数
+const searchSkills = async (query: string): Promise<SkillMaster[]> => {
+    const response = await apiClient.get<SkillMaster[]>(`/api/skills?query=${encodeURIComponent(query)}`);
+    return response.data;
+};
+
 function ProfileEditPage() {
     const { user, isLoading: isAuthLoading, isLoggedIn } = useAuthStore();
     const queryClient = useQueryClient();
@@ -112,6 +132,14 @@ function ProfileEditPage() {
     const [editingEducation, setEditingEducation] = useState<Education | null>(null);
     const [isDeleteEducationDialogOpen, setIsDeleteEducationDialogOpen] = useState(false);
     const [deletingEducationId, setDeletingEducationId] = useState<number | null>(null);
+    // ★ スキル編集用State　現在のユーザースキルリスト (編集用)
+    const [managedSkills, setManagedSkills] = useState<UserSkill[]>([]);
+    // ★ スキルマスタ検索結果
+    const [skillSearchResults, setSkillSearchResults] = useState<SkillMaster[]>([]);
+    // ★ スキル検索クエリ
+    const [skillSearchQuery, setSkillSearchQuery] = useState('');
+    // ★ スキル検索中フラグ
+    const [isSearchingSkills, setIsSearchingSkills] = useState(false);
 
     // --- データ取得 ---
     const { data: currentProfile, isLoading: isLoadingProfile, error: profileError } = useQuery<UserProfile, Error>({
@@ -120,6 +148,13 @@ function ProfileEditPage() {
         enabled: isLoggedIn,
         staleTime: 5 * 60 * 1000,
     });
+
+    // ★ 初期スキルデータを managedSkills にセット (currentProfile が変更されたら)
+    useEffect(() => {
+        if (currentProfile?.skills) {
+            setManagedSkills(currentProfile.skills);
+        }
+    }, [currentProfile?.skills]);
 
     const { data: metadata, isLoading: isLoadingMetadata, error: metadataError } = useQuery<Metadata, Error>({
         queryKey: ['metadata'],
@@ -229,7 +264,7 @@ function ProfileEditPage() {
         }
     });
 
-    // ★ 学歴 CRUD Mutation を追加
+    // ★ 学歴 CRUD Mutation
     const createEducationMutation = useMutation<Education, Error, EducationFormData, unknown>({
         mutationFn: createEducation,
         onSuccess: (newEducation) => {
@@ -278,6 +313,41 @@ function ProfileEditPage() {
         }
     });
 
+    // ★ スキル一括更新 Mutation
+    const updateSkillsMutation = useMutation<
+        UserSkill[], // onSuccess で受け取る型
+        Error,
+        Array<{ skill_id: number; level: number | null; years_of_experience: number | null; description: string | null }>, // mutate に渡す型
+        unknown
+    >({
+        mutationFn: updateMySkills,
+        onSuccess: (updatedSkills) => {
+            // フロントエンドの状態をサーバーからの最新データで更新
+            setManagedSkills(updatedSkills);
+            // 必要であれば myProfile キャッシュも更新 (より厳密には更新された UserResource で更新)
+            queryClient.setQueryData<UserProfile>(['myProfile'], (oldData) => {
+                if (!oldData) return oldData;
+                return { ...oldData, skills: updatedSkills };
+            });
+             // ユーザー表示ページのキャッシュも更新
+             if (user?.id) {
+                 queryClient.setQueryData<UserProfile>(['user', user.id.toString()], (oldData) => {
+                    if (!oldData) return oldData;
+                    return { ...oldData, skills: updatedSkills };
+                 });
+             }
+            toast({ title: "成功", description: "スキル情報が更新されました。" });
+        },
+        onError: (error) => {
+            console.error("スキル更新エラー:", error);
+            const errorMessage = (error as any)?.response?.data?.message || "スキル情報の更新に失敗しました。";
+            toast({ title: "エラー", description: errorMessage, variant: "destructive" });
+            // エラー発生時はサーバーの状態に戻すためにキャッシュを無効化
+            queryClient.invalidateQueries({ queryKey: ['myProfile'] });
+            queryClient.invalidateQueries({ queryKey: ['myEducations'] }); // スキルも取得し直す
+        }
+    });
+
     // --- ボタンハンドラ ---
     const handleAddNewExperience = () => {
         setEditingExperience(null); // 新規追加モード
@@ -317,6 +387,94 @@ function ProfileEditPage() {
         if (deletingEducationId) {
             deleteEducationMutation.mutate(deletingEducationId);
         }
+    };
+
+    // ★ スキル検索実行 (debounce も検討)
+    const handleSkillSearch = useCallback(async (query: string) => {
+        setSkillSearchQuery(query);
+        if (query.length < 1) { // 1文字未満なら検索しない
+            setSkillSearchResults([]);
+            return;
+        }
+        setIsSearchingSkills(true);
+        try {
+            const results = await searchSkills(query);
+            // 現在選択されているスキルは検索結果から除外
+            const currentSkillIds = managedSkills.map(s => s.id);
+            setSkillSearchResults(results.filter(r => !currentSkillIds.includes(r.id)));
+        } catch (error) {
+            console.error("スキル検索エラー:", error);
+            setSkillSearchResults([]); // エラー時は空にする
+        } finally {
+            setIsSearchingSkills(false);
+        }
+    }, [managedSkills]); // managedSkills が変更されたら再生成
+
+    // ★ スキル追加処理 (Combobox で選択された時)
+    const handleAddSkill = (selectedSkill: SkillMaster) => {
+        // 重複チェック
+        if (managedSkills.some(s => s.id === selectedSkill.id)) {
+            toast({ title: "情報", description: "このスキルは既に追加されています。", variant: "default" });
+            return;
+        }
+        // 新しい UserSkill オブジェクトを作成 (初期値)
+        const newUserSkill: UserSkill = {
+            id: selectedSkill.id,
+            name: selectedSkill.name,
+            type: selectedSkill.type,
+            type_label: metadata?.skill_types[selectedSkill.type] || selectedSkill.type,
+            category: selectedSkill.category || null,
+            user_details: { // 初期値
+                level: null,
+                level_label: null,
+                years_of_experience: null,
+                description: null,
+            }
+        };
+        setManagedSkills(prev => [...prev, newUserSkill]);
+        setSkillSearchQuery(''); // 検索窓をクリア
+        setSkillSearchResults([]); // 検索結果をクリア
+    };
+
+    // ★ スキル削除処理
+    const handleRemoveSkill = (skillId: number) => {
+        setManagedSkills(prev => prev.filter(s => s.id !== skillId));
+    };
+
+    // ★ スキルの詳細情報 (level 等) 更新処理
+    const handleUpdateSkillDetail = (
+        skillId: number,
+        field: 'level' | 'years_of_experience' | 'description',
+        value: number | string | null
+    ) => {
+        setManagedSkills(prev => prev.map(skill => {
+            if (skill.id === skillId) {
+                // user_details が null の可能性に対処
+                const currentUserDetails = skill.user_details ?? { level: null, level_label: null, years_of_experience: null, description: null };
+                const updatedUserDetails = {
+                    ...currentUserDetails,
+                    [field]: value,
+                    // level が更新されたら level_label も更新
+                    level_label: field === 'level' && value !== null && typeof value === 'number'
+                                ? metadata?.skill_levels[value] || String(value)
+                                : currentUserDetails.level_label
+                };
+                return { ...skill, user_details: updatedUserDetails };
+            }
+            return skill;
+        }));
+    };
+
+    // ★ スキル情報保存ボタンの処理
+    const handleSaveChanges = () => {
+        // API に送信する形式に整形
+        const dataToSend = managedSkills.map(skill => ({
+            skill_id: skill.id,
+            level: skill.user_details?.level ?? null,
+            years_of_experience: skill.user_details?.years_of_experience ?? null,
+            description: skill.user_details?.description ?? null,
+        }));
+        updateSkillsMutation.mutate(dataToSend);
     };
 
     // --- ローディング・エラーハンドリング ---
@@ -466,10 +624,76 @@ function ProfileEditPage() {
                 </CardContent>
              </Card>
 
-             {/* --- スキルセクション (開発中) --- */}
+             {/* --- スキルセクション 更新 --- */}
              <Card className="mt-6">
-                <CardHeader><CardTitle>スキル</CardTitle></CardHeader>
-                <CardContent><p className="text-muted-foreground italic">（開発中）</p></CardContent>
+                <CardHeader>
+                    <CardTitle className="flex items-center"><Lightbulb className="h-5 w-5 mr-2 text-primary"/>スキル</CardTitle>
+                    <CardDescription>あなたの専門知識や技術、語学力などを登録してください。</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {/* --- スキル追加 UI --- */}
+                    <div className="space-y-2">
+                        <Label htmlFor="skill-search">スキルを追加</Label>
+                        {/* ★ SkillCombobox コンポーネント (後で作成) */}
+                        <SkillCombobox
+                            searchQuery={skillSearchQuery}
+                            onSearchChange={handleSkillSearch}
+                            searchResults={skillSearchResults}
+                            onSelectSkill={handleAddSkill}
+                            isLoading={isSearchingSkills}
+                            placeholder="スキル名で検索..."
+                            loadingPlaceholder="検索中..."
+                            emptyPlaceholder="スキルが見つかりません"
+                        />
+                        <CardDescription>
+                            追加したいスキルを検索して選択してください。
+                        </CardDescription>
+                    </div>
+
+                    {/* --- 登録済みスキル一覧 --- */}
+                    {managedSkills.length > 0 ? (
+                        <div className="space-y-4">
+                            {/* ★ タイプ別にグループ化して表示 (UserProfilePage と同様のロジック) */}
+                            {Object.entries(
+                                managedSkills.reduce((acc, skill) => {
+                                    const typeKey = skill.type || 'その他';
+                                    if (!acc[typeKey]) acc[typeKey] = [];
+                                    acc[typeKey].push(skill);
+                                    return acc;
+                                }, {} as Record<string, UserSkill[]>)
+                            ).map(([type, skillsOfType]) => (
+                                <div key={type}>
+                                    <h3 className="text-sm font-medium mb-3 text-muted-foreground">
+                                        {metadata?.skill_types[type] || type}
+                                    </h3>
+                                    <div className="space-y-4">
+                                        {skillsOfType.map(skill => (
+                                            // ★ SkillItem コンポーネント (後で作成)
+                                            <SkillItem
+                                                key={skill.id}
+                                                skill={skill}
+                                                metadata={metadata} // レベル選択肢用
+                                                onUpdate={handleUpdateSkillDetail}
+                                                onRemove={handleRemoveSkill}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                             {/* --- 保存ボタン --- */}
+                             <div className="flex justify-end pt-4">
+                                <Button onClick={handleSaveChanges} disabled={updateSkillsMutation.isPending}>
+                                    {updateSkillsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                    スキル情報を保存
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-muted-foreground italic text-center py-4">
+                            スキルはまだ登録されていません。上の検索ボックスから追加してください。
+                        </p>
+                    )}
+                </CardContent>
              </Card>
 
              {/* --- ポートフォリオセクション (開発中) --- */}

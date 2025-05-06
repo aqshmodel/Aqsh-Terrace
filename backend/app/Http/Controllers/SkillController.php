@@ -1,5 +1,5 @@
 <?php
-
+//backend/app/Http/Controllers/SkillController.php
 namespace App\Http\Controllers;
 
 use App\Models\Skill;

@@ -14,7 +14,7 @@ class UpdateProfileSkillsRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true; // ログインユーザー自身の操作
+        return Auth::check();
     }
 
     /**
@@ -28,21 +28,18 @@ class UpdateProfileSkillsRequest extends FormRequest
         $validSkillLevels = array_keys(config('metadata.skill_levels', []));
 
         return [
-            // 'skills' キーの値は配列であることを要求
-            'skills' => ['required', 'array', 'max:50'], // 最大50スキルまでなど
-            // 配列 'skills' の各要素 (*) は配列であることを要求
-            'skills.*' => ['required', 'array'],
-            // 各スキル配列内の 'skill_id' は必須、skills テーブルに存在すること
-            // TODO: 新規スキル追加を許可する場合はルール変更が必要 (例: 'nullable', 'exists:skills,id' or 'required_without:skills.*.name')
-            'skills.*.skill_id' => ['required', 'integer', 'distinct', Rule::exists('skills', 'id')], // distinct で重複 ID を禁止
-             // TODO: 新規スキル名を受け付ける場合
-            // 'skills.*.name' => ['required_without:skills.*.skill_id', 'string', 'max:255', Rule::unique('skills', 'name')],
-            // 'level' は任意だが、存在する場合は有効な値かチェック
+            // 'skills' は配列であることを期待
+            'skills' => ['required', 'array', 'max:100'], // 例: 最大100スキルまで
+            // 配列内の各要素に対するルール (オブジェクト形式を想定)
+            'skills.*' => ['required', 'array:skill_id,level,years_of_experience,description'], // 配列のキーを指定
+            // スキルID: skills テーブルに存在する ID であること
+            'skills.*.skill_id' => ['required', 'integer', 'exists:skills,id'],
+            // スキルレベル: config のキーに含まれる値 or null
             'skills.*.level' => ['nullable', 'integer', Rule::in($validSkillLevels)],
-            // 'years_of_experience' は任意だが、存在する場合は整数かチェック (0以上など)
-            'skills.*.years_of_experience' => ['nullable', 'integer', 'min:0', 'max:99'],
-            // 'description' は任意だが、存在する場合は文字列かチェック
-            'skills.*.description' => ['nullable', 'string', 'max:1000'],
+            // 経験年数: 0以上の整数 or null
+            'skills.*.years_of_experience' => ['nullable', 'integer', 'min:0', 'max:50'], // 例: 0-50年
+            // 補足説明: 文字列 or null, 最大文字数
+            'skills.*.description' => ['nullable', 'string', 'max:500'],
         ];
     }
 
@@ -53,9 +50,9 @@ class UpdateProfileSkillsRequest extends FormRequest
     {
         return [
             'skills.*.skill_id.required' => 'スキルを選択してください。',
-            'skills.*.skill_id.exists' => '選択されたスキルが存在しません。',
-            'skills.*.skill_id.distinct' => '同じスキルを複数選択することはできません。',
-            'skills.*.level.in' => 'スキルレベルの値が無効です。',
+            'skills.*.skill_id.exists' => '選択されたスキルが無効です。',
+            'skills.*.level.in' => '選択されたスキルレベルが無効です。',
+            'skills.*.years_of_experience.integer' => '経験年数には数値を入力してください。',
             'skills.*.years_of_experience.min' => '経験年数は0以上で入力してください。',
         ];
     }

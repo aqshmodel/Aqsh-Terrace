@@ -1,5 +1,5 @@
 <?php
-///Users/tsukadatakahiro/Python/app/aqsh-terrace/backend/app/Models/User.php
+//backend/app/Models/User.php
 namespace App\Models;
 
 use Illuminate\Contracts\Auth\MustVerifyEmail; // 必要に応じて

@@ -147,3 +147,11 @@ export interface PaginatedUserPostsResponse {
   };
 }
 
+export interface Skill {
+    id: number;
+    name: string;
+    type: string;
+    type_label?: string;
+    category?: string;
+}
+
