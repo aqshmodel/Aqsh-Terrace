@@ -80,7 +80,7 @@ function UsersPage() {
 
   // --- ユーザーリスト表示 ---
   return (
-    <div className="p-4 container mx-auto max-w-4xl"> {/* コンテナと最大幅を設定 */}
+    <div className="p-4"> {/* コンテナと最大幅を設定 */}
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">ユーザー一覧</h1>
          {/* フェッチ中スピナー */}
@@ -88,7 +88,7 @@ function UsersPage() {
       </div>
 
       {/* ユーザーカードのグリッド表示 (例) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {usersData?.data?.map((user: SimpleUserInfo) => (
           // ユーザープロフィールページへのリンクにする
           <Link key={user.id} to={`/users/${user.id}`} className="block hover:shadow-md transition-shadow duration-200">

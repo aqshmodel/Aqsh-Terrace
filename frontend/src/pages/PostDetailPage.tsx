@@ -120,7 +120,7 @@ function PostDetailPage() {
     const errorMessage = error.message;
     const statusCode = isAxiosErr ? error.response?.status : null;
     return (
-      <Alert variant="destructive" className="my-4 container max-w-3xl">
+      <Alert variant="destructive" className="my-4 max-w-3xl">
         <Terminal className="h-4 w-4" />
         <AlertTitle>エラー</AlertTitle>
         <AlertDescription>
@@ -155,7 +155,7 @@ function PostDetailPage() {
   console.log("Rendering PostDetailPage with post:", post);
 
   return (
-    <div className="container mx-auto max-w-3xl p-4 space-y-6">
+    <div className="max-w-3xl p-4 space-y-6">
       <Button asChild variant="outline" size="sm">
          <Link to="/">← 投稿一覧へ戻る</Link>
       </Button>

@@ -53,7 +53,7 @@ export function ExperienceDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-[600px]"> {/* 幅を少し広げる */}
+            <DialogContent className="sm:max-w-[1200px]"> {/* 幅を少し広げる */}
                 <DialogHeader>
                     <DialogTitle>{isEdit ? '職務経歴を編集' : '職務経歴を追加'}</DialogTitle>
                     <DialogDescription>

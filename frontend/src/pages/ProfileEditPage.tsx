@@ -616,7 +616,7 @@ function ProfileEditPage() {
     if (profileError || metadataError || experiencesError || educationsError || portfolioError || !currentProfile || !metadata) {
          const errorMsg = profileError?.message || metadataError?.message || experiencesError?.message || educationsError?.message || portfolioError?.message || 'データの取得に失敗しました。';
          return (
-            <div className="container mx-auto max-w-3xl px-4 py-8">
+            <div className="max-w-3xl px-4 py-8">
                 <Alert variant="destructive">
                     <Terminal className="h-4 w-4" />
                     <AlertTitle>エラー</AlertTitle>
@@ -628,7 +628,7 @@ function ProfileEditPage() {
 
     // --- レンダリング ---
     return (
-        <div className="container mx-auto max-w-3xl px-4 py-8">
+        <div className="px-4 py-8">
             <h1 className="text-3xl font-bold mb-6">プロフィール編集</h1>
 
             {/* --- 基本情報編集フォーム --- */}

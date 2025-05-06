@@ -51,7 +51,7 @@ export function SkillDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[1200px]">
                 <DialogHeader>
                     <DialogTitle>{isEditMode ? 'スキルを編集' : 'スキルを追加'}</DialogTitle>
                     <DialogDescription>

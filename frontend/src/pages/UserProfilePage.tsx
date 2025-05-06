@@ -188,7 +188,7 @@ function UserProfilePage() {
         const errorMessage = error?.message || 'ユーザー情報の取得に失敗しました。';
         const errorTitle = errorStatus === 404 ? 'ユーザーが見つかりません' : 'エラー';
         return (
-            <Alert variant="destructive" className="my-4 container max-w-3xl">
+            <Alert variant="destructive" className="my-4 max-w-3xl">
                 <Terminal className="h-4 w-4" />
                 <AlertTitle>{errorTitle}</AlertTitle>
                 <AlertDescription>{errorMessage}</AlertDescription>
@@ -255,7 +255,7 @@ function UserProfilePage() {
 
     // --- JSX レンダリング本体 ---
     return (
-        <div className="container mx-auto max-w-5xl px-4 py-8">
+        <div className="px-4 py-8">
             {/* --- 上部: 基本情報 & アクションボタン --- */}
             <div className="flex flex-col md:flex-row items-start gap-6 mb-8">
                 {/* アバター */}

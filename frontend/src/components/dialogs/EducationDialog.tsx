@@ -43,7 +43,7 @@ export function EducationDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[1200px]">
                 <DialogHeader>
                     <DialogTitle>{isEdit ? '学歴を編集' : '学歴を追加'}</DialogTitle>
                     <DialogDescription>

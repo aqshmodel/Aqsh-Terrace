@@ -13,44 +13,37 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User as UserIcon, Bell, Loader2 } from "lucide-react";
+import { LogOut, User as UserIcon, Bell, Loader2, Home, Users, Info } from "lucide-react"; // アイコン追加
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import type { UnreadCountResponse } from '@/types/notification';
 import NotificationDropdownContent from '@/components/NotificationDropdownContent';
 
 // --- WebSocket 関連のインポート ---
-import echo from '@/lib/echo'; // 作成した Echo インスタンス
-import { useToast } from "./../hooks/use-toast"; // 相対パスに変更 (Layout.tsx から hooks ディレクトリへの相対パス)
-import { Toaster } from "@/components/ui/toaster"; // Toast を表示するコンポーネント
+import echo from '@/lib/echo';
+import { useToast } from "./../hooks/use-toast";
+import { Toaster } from "@/components/ui/toaster";
 
-// --- 通知データの型定義 (WebSocket 受信データ用) ---
+// --- 通知データの型定義 ---
 interface BaseNotificationData {
-    // Laravel Notification の toBroadcast で送られる共通的なデータ構造を想定
     message: string;
-    notification_id: string; // Laravel Notification の UUID
+    notification_id: string;
     read_at: string | null;
     created_at: string;
-    // type は toBroadcast で明示的に含めるか、クラス名から自動で付与される場合がある
-    // type: string;
+    type?: string; // タイプを明示的に含めることを推奨
 }
-
 interface CommentReceivedNotificationData extends BaseNotificationData {
-    // CommentReceived の toBroadcast で定義したデータ
     comment_id: number;
     comment_body: string;
     commenter_id: number;
     commenter_name: string;
     post_id: number;
-    post_owner_id: number; // 念のため追加した情報
-    // 必要に応じて type プロパティも定義
-    type?: 'CommentReceived' | 'App\\Notifications\\CommentReceived';
+    post_owner_id: number;
+    type: 'CommentReceived' | 'App\\Notifications\\CommentReceived'; // タイプを必須に
 }
-
 // ★ TODO: 他の通知タイプ (PostLiked, UserFollowed など) の型も定義する ★
-// interface PostLikedNotificationData extends BaseNotificationData { ... }
-// interface UserFollowedNotificationData extends BaseNotificationData { ... }
+// interface PostLikedNotificationData extends BaseNotificationData { type: 'PostLiked'; ... }
+// interface UserFollowedNotificationData extends BaseNotificationData { type: 'UserFollowed'; ... }
 
-// 受け取る可能性のある全ての通知タイプの Union 型
 type ReceivedNotificationData = CommentReceivedNotificationData /* | PostLikedNotificationData | UserFollowedNotificationData */;
 
 
@@ -73,7 +66,7 @@ function Layout() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const { toast } = useToast(); // ★ Toast フックを取得 ★
+  const { toast } = useToast();
 
   // --- ログイン状態確認 (変更なし) ---
   useEffect(() => {
@@ -250,23 +243,35 @@ function Layout() {
     // 依存配列: ログイン状態、ユーザーID、queryClient、toast が変更されたら再実行
   }, [isLoggedIn, user, queryClient, toast, logoutAction]); // logoutAction も依存配列に追加
 
+  // --- レンダリング ---
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
-      {/* ヘッダー */}
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center">
-          <Link to="/" className="mr-6 flex items-center space-x-2 font-bold">
-            {/* アイコンなどを追加しても良い */}
+      {/* ==================== ヘッダー ==================== */}
+      <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        {/* ★ ヘッダーコンテナ: 最大幅 1360px, 左右パディング */}
+        <div className="container flex h-16 max-w-[1360px] items-center justify-between px-4 sm:px-6 lg:px-8">
+          {/* 左側: ロゴ/サイト名 */}
+          <Link to="/" className="mr-4 md:mr-6 flex items-center space-x-2 font-bold text-lg hover:opacity-80 transition-opacity">
+            {/* <YourLogoComponent className="h-6 w-6" /> */}
             <span>コミュニティ</span>
           </Link>
-          {/* 中央ナビゲーション */}
-          <nav className="flex flex-1 justify-center items-center space-x-4 sm:space-x-6 text-sm font-medium">
-              <Link to="/" className="transition-colors hover:text-foreground/80 text-foreground/60">ホーム</Link>
-              <Link to="/users" className="hidden sm:inline-block transition-colors hover:text-foreground/80 text-foreground/60">ユーザー</Link>
-              <Link to="/about" className="hidden sm:inline-block transition-colors hover:text-foreground/80 text-foreground/60">アバウト</Link>
+
+          {/* 中央ナビゲーション (中画面以上で表示) */}
+          <nav className="hidden md:flex flex-1 justify-center items-center space-x-6 text-sm font-medium">
+              {/* 各リンクにアイコンを追加して視認性向上 */}
+              <Link to="/" className="flex items-center transition-colors hover:text-foreground/80 text-foreground/60">
+                  <Home className="mr-1.5 h-4 w-4" /> ホーム
+              </Link>
+              <Link to="/users" className="flex items-center transition-colors hover:text-foreground/80 text-foreground/60">
+                  <Users className="mr-1.5 h-4 w-4" /> ユーザー
+              </Link>
+              <Link to="/about" className="flex items-center transition-colors hover:text-foreground/80 text-foreground/60">
+                  <Info className="mr-1.5 h-4 w-4" /> アバウト
+              </Link>
           </nav>
-          {/* 右側の認証・通知エリア */}
-          <div className="flex items-center space-x-2 sm:space-x-4">
+
+          {/* 右側: 認証・通知エリア */}
+          <div className="flex items-center space-x-2 sm:space-x-3">
             {isLoggedIn && user ? (
               <>
                 {/* 通知ドロップダウンメニュー */}
@@ -275,22 +280,21 @@ function Layout() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="relative rounded-full h-9 w-9 sm:h-10 sm:w-10" // サイズ調整
+                      className="relative rounded-full h-9 w-9" // サイズ統一
                       aria-label="通知を開く"
                     >
                       <Bell className="h-5 w-5" />
                       {isLoadingUnread ? (
                           <Loader2 className="absolute -top-1 -right-1 h-4 w-4 animate-spin text-muted-foreground" />
                       ) : unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white"> {/* サイズ微調整 */}
+                        // ★ バッジを少し調整 (shadcn の Badge コンポーネント風に)
+                        <span className="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white bg-red-500 rounded-full">
                           {unreadCount > 9 ? '9+' : unreadCount}
                         </span>
                       )}
-                      <span className="sr-only">通知</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-80 p-0" align="end">
-                     {/* 通知ドロップダウンの中身は別コンポーネント */}
+                  <DropdownMenuContent className="w-80 p-0" align="end" sideOffset={8}> {/* sideOffset で少し離す */}
                      <NotificationDropdownContent />
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -298,32 +302,31 @@ function Layout() {
                 {/* ユーザーメニュー */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                         {/* ボタンの padding や Avatar のサイズを微調整 */}
-                         <Button variant="ghost" className="relative h-10 px-2 rounded-full flex items-center space-x-2">
-                             <Avatar className="h-7 w-7 sm:h-8 sm:w-8"> {/* サイズ調整 */}
+                         <Button variant="ghost" className="relative h-9 w-9 sm:h-10 sm:w-auto sm:px-2 sm:space-x-2 rounded-full flex items-center">
+                             <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
+                                 {/* ★ AvatarImage を先に記述 (読み込めなかったら Fallback) */}
+                                 {/* <AvatarImage src={user.avatarUrl} alt={user.name} /> */}
                                  <AvatarFallback>{user.name ? user.name.charAt(0).toUpperCase() : '?'}</AvatarFallback>
-                                 {/* <AvatarImage src={user.avatarUrl} alt={user.name} /> アバター画像があれば */}
                              </Avatar>
-                             <span className="hidden sm:inline text-sm">{user.name}</span>
+                             <span className="hidden sm:inline text-sm font-medium">{user.name}</span>
                          </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuContent className="w-56" align="end" forceMount sideOffset={8}>
                          <DropdownMenuLabel className="font-normal">
                            <div className="flex flex-col space-y-1">
                              <p className="text-sm font-medium leading-none">{user.name}</p>
-                             {/* email は任意なので存在チェック */}
                              {user.email && <p className="text-xs leading-none text-muted-foreground">{user.email}</p>}
                            </div>
                          </DropdownMenuLabel>
                          <DropdownMenuSeparator />
-                         <DropdownMenuItem asChild>
-                           <Link to={`/users/${user.id}`} className="flex items-center cursor-pointer">
+                         <DropdownMenuItem asChild className="cursor-pointer">
+                           <Link to={`/users/${user.id}`} className="flex items-center">
                              <UserIcon className="mr-2 h-4 w-4" />
                              <span>プロフィール</span>
                            </Link>
                          </DropdownMenuItem>
                          <DropdownMenuSeparator />
-                         <DropdownMenuItem onClick={handleLogout} className="flex items-center cursor-pointer">
+                         <DropdownMenuItem onClick={handleLogout} className="text-red-600 focus:bg-red-100 focus:text-red-700 cursor-pointer flex items-center">
                            <LogOut className="mr-2 h-4 w-4" />
                            <span>ログアウト</span>
                          </DropdownMenuItem>
@@ -341,25 +344,31 @@ function Layout() {
         </div>
       </header>
 
-      {/* メインコンテンツ */}
-      <main className="flex-1">
-          {/* コンテナに左右パディングを追加 */}
-          <div className="container mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
-              <Outlet />
+      {/* ==================== メインコンテンツ ==================== */}
+      {/* ★ flex-1 で高さを確保し、コンテナとパディングを適用 */}
+      <main className="flex-1 w-full">
+          {/* ★ コンテナ: 最大幅 1360px, 左右パディング, 上下のマージン/パディングを追加 */}
+          <div className="container mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8 py-8 md:py-10">
+              <Outlet /> {/* 各ページのコンテンツがここに表示される */}
           </div>
       </main>
 
-      {/* フッター */}
+      {/* ==================== フッター ==================== */}
       <footer className="border-t bg-muted/40">
-          <div className="container flex flex-col items-center justify-center gap-4 h-24 md:flex-row md:justify-between">
+          {/* ★ フッターコンテナ: 最大幅 1360px, 左右パディング */}
+          <div className="container flex flex-col items-center justify-between gap-4 h-20 max-w-[1360px] px-4 sm:px-6 lg:px-8 md:h-24 md:flex-row">
              <p className="text-center text-sm text-muted-foreground md:text-left">
-                 © {new Date().getFullYear()} コミュニティプラットフォーム.
+                 © {new Date().getFullYear()} コミュニティプラットフォーム. All Rights Reserved.
              </p>
-             {/* フッターにリンクなどを追加しても良い */}
+             {/* フッターナビゲーションなど */}
+             <nav className="flex gap-4 sm:gap-6">
+                 <Link to="/terms" className="text-xs hover:underline underline-offset-4 text-muted-foreground">利用規約</Link>
+                 <Link to="/privacy" className="text-xs hover:underline underline-offset-4 text-muted-foreground">プライバシーポリシー</Link>
+             </nav>
           </div>
       </footer>
 
-      {/* ★ Toast を表示するための Toaster コンポーネント ★ */}
+      {/* ==================== Toaster ==================== */}
       <Toaster />
     </div>
   );

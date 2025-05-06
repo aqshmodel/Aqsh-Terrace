@@ -37,7 +37,7 @@ export function PortfolioDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogContent className="sm:max-w-[600px]">
+            <DialogContent className="sm:max-w-[1200px]">
                 <DialogHeader>
                     <DialogTitle>{isEditMode ? 'ポートフォリオを編集' : 'ポートフォリオを追加'}</DialogTitle>
                     <DialogDescription>

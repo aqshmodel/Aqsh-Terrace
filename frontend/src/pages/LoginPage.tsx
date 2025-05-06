@@ -35,7 +35,7 @@ function LoginPage() {
 
   // ログインしていない場合にフォームを表示
   return (
-    <div className="p-4 max-w-md mx-auto">
+    <div className="p-4 max-w-xl mx-auto">
       <h1 className="text-2xl font-bold mb-6 text-center">ログイン</h1>
       <LoginForm />
       {/* 登録ページへのリンク */}
