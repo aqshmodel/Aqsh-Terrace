@@ -158,10 +158,10 @@ export function SkillAsyncSelect({
             noOptionsMessage={noOptionsMessage}
             loadingMessage={loadingMessage}
             styles={customStyles}
-            // ★ inputValue と onInputChange を AsyncSelect に渡す
             inputValue={inputValue}
             onInputChange={onInputChange}
-            // value={null} // 選択後にクリアする場合、value は常に null or undefined
+            // ★ value プロパティを追加し、常に null に設定
+            value={null}
             inputId="skill-async-select"
         />
     );
