@@ -99,7 +99,7 @@ export function AvatarUpload({
 
     return (
         <div className="flex flex-col items-center space-y-4">
-            <Avatar className="h-24 w-24 sm:h-32 sm:w-32 border-2 border-muted">
+            <Avatar className="h-25 w-25 sm:h-25 sm:w-25 border-2 border-muted">
                 {/* プレビューまたは現在の画像を表示 */}
                 <AvatarImage src={previewUrl ?? undefined} alt={userName} />
                 {/* フォールバック */}

@@ -252,13 +252,13 @@ function UserProfilePage() {
             {/* --- 上部: 基本情報 & アクションボタン --- */}
             <div className="flex flex-col md:flex-row items-start gap-6 mb-8">
                 {/* アバター */}
-                <Avatar className="h-50 w-50 md:h-50 md:w-50 border flex-shrink-0">
+                <Avatar className="h-25 w-25 md:h-25 md:w-25 border flex-shrink-0">
                     <AvatarImage src={profile.profile_image_url ?? undefined} alt={profile.name} />
                     <AvatarFallback className="text-4xl">{profile.name?.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
 
                 {/* 名前、ヘッドライン、基本情報 */}
-                <div className="flex-1">
+                <div className="flex-1 pl-6">
                     <h1 className="text-3xl font-bold">{profile.name}</h1>
                     {profile.headline && <p className="text-lg text-muted-foreground mt-1">{profile.headline}</p>}
 

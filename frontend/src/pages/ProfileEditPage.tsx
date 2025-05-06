@@ -716,7 +716,7 @@ function ProfileEditPage() {
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6"> {/* グリッドレイアウトに変更 */}
                      {/* アバターアップロード (左カラム) */}
-                    <div className="md:col-span-1 flex justify-center md:justify-start pt-4">
+                    <div className="md:col-span-1 flex justify-center md:justify-start pl-5 pt-5">
                         <AvatarUpload
                             currentImageUrl={currentProfile?.profile_image_url ?? null}
                             onUpload={handleAvatarUpload}

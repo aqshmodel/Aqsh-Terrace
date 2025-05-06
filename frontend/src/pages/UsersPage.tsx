@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom'; // Link をインポート
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Avatar コンポーネントをインポート
-import { Terminal, Loader2, MapPin, Briefcase, Users, MessageSquare } from "lucide-react"; // アイコンを追加
+import { Terminal, Loader2, MapPin, Briefcase, Users, User, MessageSquare } from "lucide-react"; // アイコンを追加
 import axios, { AxiosError } from 'axios';
 import { formatRelativeTime } from '@/lib/utils'; // 日付フォーマット関数
 import { SimpleUserInfo } from '@/types/user'; // 新しい型定義をインポート
@@ -101,41 +101,77 @@ function UsersPage() {
          {isFetching && <Loader2 className="animate-spin h-5 w-5 text-muted-foreground" />}
       </div>
 
-      {/* ユーザーカードのグリッド表示 (例) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+       {/* ユーザーカードのグリッド表示 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6"> {/* gapを少し広げる */}
         {usersData?.data?.map((user: SimpleUserInfo) => (
-          // ユーザープロフィールページへのリンクにする
-          <Link key={user.id} to={`/users/${user.id}`} className="block hover:shadow-md transition-shadow duration-200">
-            <Card className="h-full flex flex-col"> {/* 高さを揃える */}
-              <CardHeader className="flex flex-row items-center gap-4 pb-2">
-                <Avatar className="h-20 w-20 border">
-                  <AvatarImage src={user.profile_image_url ?? undefined} alt={user.name} />
-                  <AvatarFallback>{user.name?.charAt(0).toUpperCase()}</AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <CardTitle className="text-lg leading-tight">{user.name}</CardTitle>
-                  {user.headline && <CardDescription className="text-xs mt-1 line-clamp-2">{user.headline}</CardDescription>}
-                </div>
-              </CardHeader>
-              <CardContent className="text-xs text-muted-foreground flex-grow space-y-1 pt-2">
-                 {user.location && (
-                    <div className="flex items-center">
-                        <MapPin className="h-3 w-3 mr-1.5 flex-shrink-0" />
-                        <span>{user.location}</span>
+          <Link key={user.id} to={`/users/${user.id}`} className="block group"> {/* group を追加してホバー効果をつけやすくする */}
+            <Card className="h-full overflow-hidden transition-all duration-300 ease-in-out group-hover:shadow-xl group-hover:border-primary/50">
+              {/* PC (md以上) では左右2カラム、スマホでは縦積み */}
+              <div className="md:flex h-full">
+                {/* 左側: アバター (PC) */}
+                <div className="md:w-1/3 relative overflow-hidden bg-muted/30 group-hover:opacity-90 transition-opacity"> {/* relative と overflow-hidden を追加 */}
+                  {user.profile_image_url ? (
+                    <img
+                      src={user.profile_image_url}
+                      alt={user.name}
+                      // 画像をコンテナいっぱいに表示し、アスペクト比を維持してカバー
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  ) : (
+                    // 画像がない場合のフォールバック (アイコンやイニシャルなど)
+                    <div className="absolute inset-0 w-full h-full flex justify-center items-center bg-gradient-to-br from-primary/10 to-secondary/10 text-primary/50">
+                      <User className="h-16 w-16 md:h-20 md:w-20" />
+                      {/* またはイニシャル */}
+                      {/* <span className="text-5xl font-semibold">{user.name?.charAt(0).toUpperCase()}</span> */}
                     </div>
-                 )}
-                 {/* カウント情報を表示 */}
-                 {(user.posts_count !== undefined || user.followers_count !== undefined || user.followings_count !== undefined) && (
-                     <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 pt-1">
-                        {user.posts_count !== undefined && <span className="flex items-center"><MessageSquare className="h-3 w-3 mr-0.5" />{user.posts_count} 投稿</span>}
-                        {user.followers_count !== undefined && <span className="flex items-center"><Users className="h-3 w-3 mr-0.5" />{user.followers_count} フォロワー</span>}
-                        {/* {user.followings_count !== undefined && <span>{user.followings_count} フォロー中</span>} */}
-                     </div>
-                 )}
-                 <div className="pt-1">
-                    登録: {formatRelativeTime(user.created_at)}
-                 </div>
-              </CardContent>
+                  )}
+                  {/* スマホ表示時用の画像 (もしPCとスマホでレイアウトを変えたい場合) */}
+                  {/* この例ではPCのみこのスタイルを適用し、スマホはデフォルトの縦積みを想定 */}
+                  {/* もしスマホでも画像を目立たせたいなら、このimgタグをmd:hiddenにして、別途スマホ用画像エリアを作るなど */}
+                </div>
+
+                {/* 右側: ユーザー情報 (PC) / またはアバターの下 (スマホ) */}
+                <div className="md:w-2/3 p-4 md:p-5 flex flex-col">
+                  <CardHeader className="p-0 pb-2">
+                    <CardTitle className="text-xl font-semibold leading-tight group-hover:text-primary transition-colors">
+                      {user.name}
+                    </CardTitle>
+                    {user.headline && (
+                      <CardDescription className="text-sm text-muted-foreground mt-1 line-clamp-3">
+                        {user.headline}
+                      </CardDescription>
+                    )}
+                  </CardHeader>
+
+                  <CardContent className="p-0 text-sm text-muted-foreground flex-grow space-y-1.5 mt-3">
+                    {user.location && (
+                      <div className="flex items-center">
+                        <MapPin className="h-4 w-4 mr-2 flex-shrink-0 text-primary/80" />
+                        <span>{user.location}</span>
+                      </div>
+                    )}
+                    {(user.posts_count !== undefined || user.followers_count !== undefined) && (
+                      <div className="flex items-center flex-wrap gap-x-3 gap-y-1 pt-1">
+                        {user.posts_count !== undefined && (
+                          <span className="flex items-center">
+                            <MessageSquare className="h-4 w-4 mr-1 text-primary/80" />
+                            {user.posts_count} <span className="ml-0.5 hidden sm:inline">投稿</span>
+                          </span>
+                        )}
+                        {user.followers_count !== undefined && (
+                          <span className="flex items-center">
+                            <Users className="h-4 w-4 mr-1 text-primary/80" />
+                            {user.followers_count} <span className="ml-0.5 hidden sm:inline">フォロワー</span>
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                  <div className="text-xs text-muted-foreground/80 mt-auto pt-3"> {/* mt-autoで一番下に配置 */}
+                    メンバー登録: {formatRelativeTime(user.created_at)}
+                  </div>
+                </div>
+              </div>
             </Card>
           </Link>
         ))}

@@ -12,7 +12,7 @@ function HomePage() {
 
   return (
     <div className="p-4 space-y-8"> {/* space-y で要素間の間隔を調整 */}
-      <h1 className="text-2xl font-bold">Aqsh Terrace</h1>
+      <h1 className="text-2xl font-bold">Post</h1>
 
       {/* ログインしている場合にのみ投稿フォームを表示 */}
       {isLoggedIn ? (

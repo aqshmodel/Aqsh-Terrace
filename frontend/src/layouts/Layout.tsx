@@ -255,11 +255,11 @@ function Layout() {
           {/* 左側: ロゴ/サイト名 */}
           <Link to="/" className="mr-4 md:mr-6 flex items-center space-x-2 font-bold text-lg hover:opacity-80 transition-opacity">
             {/* <YourLogoComponent className="h-6 w-6" /> */}
-            <span>Take a chance on yourself</span>
+            <span>Aqsh Terrace</span>
           </Link>
 
           {/* 中央ナビゲーション (中画面以上で表示) */}
-          <nav className="hidden md:flex flex-1 justify-center items-center space-x-20 text-m font-medium">
+          <nav className="hidden md:flex flex-1 justify-center items-center space-x-20 text-lg font-medium">
               {/* 各リンクにアイコンを追加して視認性向上 */}
               <Link to="/" className="flex items-center transition-colors hover:text-foreground/80 text-foreground/60">
                   <Home className="mr-1.5 h-4 w-4" /> Home
@@ -305,12 +305,12 @@ function Layout() {
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                          <Button variant="ghost" className="relative h-9 w-9 sm:h-10 sm:w-auto sm:px-2 sm:space-x-2 rounded-full flex items-center">
-                             <Avatar className="h-7 w-7 sm:h-8 sm:w-8">
+                             <Avatar className="h-8 w-8 sm:h-8 sm:w-8">
                                  {/* ★ AvatarImage を先に記述 (読み込めなかったら Fallback) */}
                                  <AvatarImage src={user.profile_image_url ?? undefined} alt={user.name} />
                                  <AvatarFallback>{user.name ? user.name.charAt(0).toUpperCase() : '?'}</AvatarFallback>
                              </Avatar>
-                             <span className="hidden sm:inline text-sm font-medium">{user.name}</span>
+                             <span className="hidden sm:inline text-md font-medium">{user.name}</span>
                          </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-56" align="end" forceMount sideOffset={8}>
@@ -364,8 +364,8 @@ function Layout() {
              </p>
              {/* フッターナビゲーションなど */}
              <nav className="flex gap-4 sm:gap-6">
-                 <Link to="https://aqsh.co.jp/aqsh-termofservice/" className="text-xs hover:underline underline-offset-4 text-muted-foreground">利用規約</Link>
-                 <Link to="https://aqsh.co.jp/privacypolicy/" className="text-xs hover:underline underline-offset-4 text-muted-foreground">プライバシーポリシー</Link>
+                 <Link to="https://aqsh.co.jp/aqsh-termofservice/" className="text-sm hover:underline underline-offset-4 text-muted-foreground">利用規約</Link>
+                 <Link to="https://aqsh.co.jp/privacypolicy/" className="text-sm hover:underline underline-offset-4 text-muted-foreground">プライバシーポリシー</Link>
              </nav>
           </div>
       </footer>
