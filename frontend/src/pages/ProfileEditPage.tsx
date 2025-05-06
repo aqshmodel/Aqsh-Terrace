@@ -1,5 +1,6 @@
 // frontend/src/pages/ProfileEditPage.tsx
 import React, { useState, useEffect } from 'react'; // ★ useCallback, useRef は不要に
+import { Link } from 'react-router-dom';
 import {
     Card,
     CardContent,
@@ -714,9 +715,9 @@ function ProfileEditPage() {
                     <CardTitle>基本情報</CardTitle>
                     <CardDescription>あなたのアカウント情報を編集します。</CardDescription>
                 </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6"> {/* グリッドレイアウトに変更 */}
+                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
                      {/* アバターアップロード (左カラム) */}
-                    <div className="md:col-span-1 flex justify-center md:justify-start pl-5 pt-5">
+                    <div className="col-span-1 flex justify-center md:justify-start pl-5 pt-5">
                         <AvatarUpload
                             currentImageUrl={currentProfile?.profile_image_url ?? null}
                             onUpload={handleAvatarUpload}
@@ -726,15 +727,17 @@ function ProfileEditPage() {
                             userName={currentProfile?.name}
                         />
                     </div>
-                     {/* 基本情報フォーム (右カラム) */}
-                    <div className="md:col-span-2">
+                    <div className='col-span-1 md:flex md:justify-end'>
+                        <Link to={`/users/${user.id}`}><Button>プロフィール編集終了</Button></Link>
+                    </div>
+                    <div className='col-span-2'>
                          <BasicInfoForm
                             initialData={currentProfile}
                             metadata={metadata}
                             onSubmit={updateProfileMutation.mutate}
                             isPending={updateProfileMutation.isPending}
                         />
-                    </div>
+                        </div>
                 </CardContent>
             </Card>
 

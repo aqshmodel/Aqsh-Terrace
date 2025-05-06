@@ -6,38 +6,29 @@ import {
     UserProfile,
     PaginatedUserPostsResponse,
     UserSkill,
-    // Experience, Education, PortfolioItem はここでは直接使わないが、UserProfile 型内で参照されている
-} from '@/types/user'; // 型定義をインポート
+} from '@/types/user';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-// import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"; // 未使用
-// import { Dialog, DialogTrigger } from "@/components/ui/dialog"; // 未使用
-// import { AlertDialog, AlertDialogTrigger } from "@/components/ui/alert-dialog"; // 未使用
 import {
-    ExternalLink, MapPin, Mail, Edit, Loader2, Github, Twitter, Linkedin, Facebook, Instagram, // ★ Facebook, Instagram 追加
+    ExternalLink, MapPin, Mail, Edit, Loader2, Github, Twitter, Linkedin, Facebook, Instagram,
     Building, GraduationCap, UserCheck, UserPlus, Briefcase, Lightbulb, BookOpen, Star,
     Calendar, MessageSquare, Terminal, MoreHorizontal, User as UserIcon,
-    Link as LinkIcon // ★ LinkIcon 追加 (会社URL用)
-    // ChevronDown, ChevronUp // 未使用
+    Link as LinkIcon,
+    Settings
 } from 'lucide-react';
 import { formatRelativeTime } from '@/lib/utils';
-import { PostList } from '@/components/PostList'; // 名前付きインポート
+import { PostList } from '@/components/PostList';
 import useAuthStore from '@/stores/authStore';
-import { useState, useEffect, useCallback } from 'react'; // useCallback をインポート
-import useDocumentTitle from '@/hooks/useDocumentTitle'; // ★ カスタムフックをインポート
-// import { Helmet } from 'react-helmet-async'; // 未使用
-// import { PostEditDialog } from '@/components/PostEditDialog'; // 未使用
-// import { PostDeleteAlert } from '@/components/PostDeleteAlert'; // 未使用
-// import type { Post as PostType } from '@/types/post'; // 未使用
+import { useState, useEffect, useCallback } from 'react';
+import useDocumentTitle from '@/hooks/useDocumentTitle';
 
 // --- API 関数 ---
 const fetchUserProfile = async (userId: string): Promise<UserProfile> => {
     const response = await apiClient.get<{ data: UserProfile }>(`/api/users/${userId}`);
-    // データ存在チェックを修正 (response.data が存在し、その中の data プロパティが存在するか)
     if (!response.data || !response.data.data) { throw new Error('User data not found in response'); }
     return response.data.data;
 };
@@ -55,7 +46,6 @@ const unfollowUser = async (userId: number) => {
     await apiClient.delete(`/api/users/${userId}/follow`);
 };
 
-// メタデータ取得API (プロフィール表示用)
 interface Metadata {
     industries: Record<string, string>;
     company_types: Record<string, string>;
@@ -76,7 +66,6 @@ function UserProfilePage() {
     const { user: loggedInUser, isLoggedIn } = useAuthStore();
     const [postPage, setPostPage] = useState(1);
 
-    // メタデータの取得
     const { data: metadata } = useQuery<Metadata, Error>({
         queryKey: ['metadata'],
         queryFn: fetchMetadata,
@@ -85,14 +74,12 @@ function UserProfilePage() {
         refetchOnWindowFocus: false,
     });
 
-    // userId が URL に存在しない場合
     if (!userId) {
         navigate('/404');
         return null;
     }
     const parsedUserId = parseInt(userId, 10);
 
-    // ユーザープロフィールの取得
     const { data: profile, isLoading, error } = useQuery<UserProfile, Error>({
         queryKey: ['user', userId],
         queryFn: () => fetchUserProfile(userId),
@@ -100,22 +87,17 @@ function UserProfilePage() {
         staleTime: 5 * 60 * 1000,
     });
 
-    // ★ データ取得後にタイトルを設定
     useDocumentTitle(profile?.name ? `Aqsh Terrace | ${profile.name}さん` : 'Aqsh Terrace | ユーザープロフィール');
 
-    // ユーザー投稿リストのクエリキー
     const userPostsQueryKey = ['userPosts', userId, postPage];
-
-    // ユーザー投稿リストの取得
     const { data: postsData, isLoading: isLoadingPosts, isFetching: isFetchingPosts, isError: isErrorPosts, error: errorPosts } = useQuery<PaginatedUserPostsResponse, Error>({
         queryKey: userPostsQueryKey,
         queryFn: () => fetchUserPosts(userId, postPage),
-        enabled: !!userId,
+        enabled: !!userId && !!profile,
         placeholderData: keepPreviousData,
         staleTime: 1 * 60 * 1000,
     });
 
-    // フォロー処理の Mutation
     const followMutation = useMutation<void, Error, void, unknown>({
         mutationFn: () => followUser(parsedUserId),
         onSuccess: () => {
@@ -123,7 +105,6 @@ function UserProfilePage() {
                 if (!oldData) return oldData;
                 return { ...oldData, is_following: true, followers_count: (oldData.followers_count ?? 0) + 1 };
             });
-            // フォロー/フォロワーリスト関連のキャッシュを無効化
             queryClient.invalidateQueries({ queryKey: ['followers', userId] });
             queryClient.invalidateQueries({ queryKey: ['followings', loggedInUser?.id] });
         },
@@ -133,7 +114,6 @@ function UserProfilePage() {
         }
     });
 
-    // アンフォロー処理の Mutation
     const unfollowMutation = useMutation<void, Error, void, unknown>({
         mutationFn: () => unfollowUser(parsedUserId),
         onSuccess: () => {
@@ -141,7 +121,6 @@ function UserProfilePage() {
                 if (!oldData) return oldData;
                 return { ...oldData, is_following: false, followers_count: Math.max(0, (oldData.followers_count ?? 0) - 1) };
             });
-            // フォロー/フォロワーリスト関連のキャッシュを無効化
             queryClient.invalidateQueries({ queryKey: ['followers', userId] });
             queryClient.invalidateQueries({ queryKey: ['followings', loggedInUser?.id] });
         },
@@ -151,9 +130,7 @@ function UserProfilePage() {
         }
     });
 
-    // いいね成功時のコールバック
     const handleLikeToggleSuccess = useCallback((postId: number, newLikedStatus: boolean, newLikesCount: number) => {
-        // console.log(`[UserProfilePage] Received like success for post ${postId}. Updating cache...`);
         queryClient.setQueryData<PaginatedUserPostsResponse>(userPostsQueryKey, (oldData) => {
             if (!oldData) return oldData;
             const newData = oldData.data.map(post => {
@@ -166,75 +143,41 @@ function UserProfilePage() {
         });
     }, [queryClient, userPostsQueryKey]);
 
-    // いいね失敗時のコールバック
     const handleLikeToggleError = useCallback((error: Error, postId: number) => {
         console.error(`[UserProfilePage] Received like error for post ${postId}:`, error);
         queryClient.invalidateQueries({ queryKey: ['userPosts', userId] });
     }, [queryClient, userId]);
 
-    // --- ローディング・エラー表示 (プロファイル取得) ---
+
     if (isLoading) {
-        return <div className="flex justify-center items-center h-64"><Loader2 className="h-16 w-16 animate-spin text-muted-foreground" /></div>;
+        return (
+            <div className="flex flex-col justify-center items-center min-h-[calc(100vh-200px)]">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="mt-4 text-muted-foreground">ユーザー情報を読み込んでいます...</p>
+            </div>
+        );
     }
     if (error || !profile) {
         const errorStatus = (error as any)?.response?.status;
         const errorMessage = error?.message || 'ユーザー情報の取得に失敗しました。';
-        const errorTitle = errorStatus === 404 ? 'ユーザーが見つかりません' : 'エラー';
+        const errorTitle = errorStatus === 404 ? 'ユーザーが見つかりません' : 'エラーが発生しました';
         return (
-            <Alert variant="destructive" className="my-4 max-w-3xl">
-                <Terminal className="h-4 w-4" />
-                <AlertTitle>{errorTitle}</AlertTitle>
-                <AlertDescription>{errorMessage}</AlertDescription>
-                <Button variant="link" onClick={() => navigate('/')} className="mt-2">ホームに戻る</Button>
-            </Alert>
+            <div className="container mx-auto max-w-2xl py-12">
+                <Alert variant="destructive">
+                    <Terminal className="h-5 w-5" />
+                    <AlertTitle className="text-lg">{errorTitle}</AlertTitle>
+                    <AlertDescription className="mt-1">{errorMessage}</AlertDescription>
+                    <Button variant="outline" onClick={() => navigate('/')} className="mt-4">
+                        ホームに戻る
+                    </Button>
+                </Alert>
+            </div>
         );
     }
 
-    // --- レンダリング補助関数 ---
     const isOwner = profile.is_owner;
 
-    // ★ ソーシャルリンク表示関数を更新
-    const renderSocialLinks = () => {
-         // social_links が null or undefined or 空オブジェクトの場合
-         if (!profile.social_links || Object.keys(profile.social_links).length === 0) return null;
-
-         const links = [];
-         // 各キーが存在し、かつURLが空でない場合のみリンクを追加
-         if (profile.social_links?.github) links.push({ icon: Github, url: profile.social_links.github, label: 'GitHub' });
-         if (profile.social_links?.twitter) links.push({ icon: Twitter, url: profile.social_links.twitter, label: 'Twitter/X' });
-         if (profile.social_links?.linkedin) links.push({ icon: Linkedin, url: profile.social_links.linkedin, label: 'LinkedIn' });
-         // ★ Facebook と Instagram を追加
-         if (profile.social_links?.facebook) links.push({ icon: Facebook, url: profile.social_links.facebook, label: 'Facebook' });
-         if (profile.social_links?.instagram) links.push({ icon: Instagram, url: profile.social_links.instagram, label: 'Instagram' });
-
-         if (links.length === 0) return null; // 有効なリンクがない場合は何も表示しない
-
-         return (
-             <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3"> {/* mt-2からmt-3へ調整 */}
-                 {links.map((link) => (
-                     <a key={link.label} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors">
-                         <link.icon className="h-4 w-4 mr-1 flex-shrink-0" /> {/* アイコンサイズ調整 */}
-                         {link.label}
-                         <ExternalLink className="h-3 w-3 ml-0.5 opacity-70" /> {/* サイズ、マージン調整 */}
-                     </a>
-                 ))}
-             </div>
-         );
-    };
-
-    // 経験業界などのラベル表示
-    const renderLabelsFromArray = (keys: string[] | undefined | null, configKey: keyof Metadata) => {
-        if (!keys || keys.length === 0 || !metadata) return null;
-        const labelMap = metadata[configKey];
-        if (!labelMap) return null;
-        return keys.map(key => (
-            <Badge key={key} variant="outline" className="mr-1 mb-1 text-xs sm:text-sm">
-                {labelMap[key] || key}
-            </Badge>
-        ));
-    };
-
-    // スキル表示 (タイプ別グループ化)
+    // ★★★ groupSkillsByType 関数の定義をコンポーネント内に移動 ★★★
     const groupSkillsByType = (skills: UserSkill[] | undefined | null): Record<string, UserSkill[]> => {
         if (!skills) return {};
         return skills.reduce((acc, skill) => {
@@ -244,164 +187,226 @@ function UserProfilePage() {
             return acc;
         }, {} as Record<string, UserSkill[]>);
     };
-    const groupedSkills = groupSkillsByType(profile.skills);
+    const groupedSkills = groupSkillsByType(profile?.skills);
+
+
+    const renderSocialLinks = () => {
+         if (!profile.social_links || Object.keys(profile.social_links).length === 0) return null;
+         const socialLinkConfig = [
+             { key: 'github', icon: Github, label: 'GitHub' },
+             { key: 'twitter', icon: Twitter, label: 'Twitter/X' },
+             { key: 'linkedin', icon: Linkedin, label: 'LinkedIn' },
+             { key: 'facebook', icon: Facebook, label: 'Facebook' },
+             { key: 'instagram', icon: Instagram, label: 'Instagram' },
+         ];
+         const links = socialLinkConfig
+            .map(sl => profile.social_links[sl.key] ? { ...sl, url: profile.social_links[sl.key] } : null)
+            .filter(Boolean);
+
+         if (links.length === 0) return null;
+
+         return (
+             <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4">
+                 {links.map((link) => (
+                    link && (
+                     <a key={link.label} href={link.url!} target="_blank" rel="noopener noreferrer" className="flex items-center text-sm text-muted-foreground hover:text-primary transition-colors group">
+                         <link.icon className="h-5 w-5 mr-1.5 flex-shrink-0 group-hover:scale-110 transition-transform" />
+                         <span className="hidden sm:inline">{link.label}</span>
+                         <ExternalLink className="h-3.5 w-3.5 ml-1 opacity-70 group-hover:opacity-100 transition-opacity" />
+                     </a>
+                    )
+                 ))}
+             </div>
+         );
+    };
+
+    const renderLabelsFromArray = (keys: string[] | undefined | null, configKey: keyof Metadata, icon?: React.ElementType, title?: string) => {
+        if (!keys || keys.length === 0 || !metadata) return null;
+        const labelMap = metadata[configKey];
+        if (!labelMap) return null;
+        const IconComponent = icon;
+        return (
+            <div className="mt-4">
+                {title && <h3 className="text-sm font-semibold text-muted-foreground mb-1.5">{title}</h3>}
+                <div className="flex flex-wrap items-center gap-1.5">
+                    {IconComponent && <IconComponent className="h-4 w-4 text-muted-foreground flex-shrink-0 mr-1" />}
+                    {keys.map(key => (
+                        <Badge key={key} variant="secondary" className="text-xs font-normal px-2.5 py-1">
+                            {labelMap[key] || key}
+                        </Badge>
+                    ))}
+                </div>
+            </div>
+        );
+    };
 
     // --- JSX レンダリング本体 ---
     return (
-        <div className="px-4 py-8">
-            {/* --- 上部: 基本情報 & アクションボタン --- */}
-            <div className="flex flex-col md:flex-row items-start gap-6 mb-8">
-                {/* アバター */}
-                <Avatar className="h-25 w-25 md:h-25 md:w-25 border flex-shrink-0">
-                    <AvatarImage src={profile.profile_image_url ?? undefined} alt={profile.name} />
-                    <AvatarFallback className="text-4xl">{profile.name?.charAt(0).toUpperCase()}</AvatarFallback>
-                </Avatar>
-
-                {/* 名前、ヘッドライン、基本情報 */}
-                <div className="flex-1 pl-6">
-                    <h1 className="text-3xl font-bold">{profile.name}</h1>
-                    {profile.headline && <p className="text-lg text-muted-foreground mt-1">{profile.headline}</p>}
-
-                    {/* ★ 所属企業表示を追加 */}
-                    {profile.current_company_name && (
-                        <div className="flex items-center text-sm text-muted-foreground mt-3">
-                            <Building className="h-4 w-4 mr-1.5 flex-shrink-0" />
-                            <span>{profile.current_company_name}</span>
-                            {profile.current_company_url && (
-                                <a href={profile.current_company_url} target="_blank" rel="noopener noreferrer" className="ml-2 flex items-center hover:text-primary hover:underline">
-                                    <LinkIcon className="h-3 w-3 mr-0.5" />
-                                    <span>Webサイト</span>
-                                    <ExternalLink className="h-3 w-3 ml-0.5 opacity-70" />
-                                </a>
-                            )}
-                        </div>
-                    )}
-
-                    <div className="flex items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mt-3 flex-wrap">
-                        {profile.location && <span className="flex items-center"><MapPin className="h-4 w-4 mr-1 flex-shrink-0" /> {profile.location}</span>}
-                        <span className="flex items-center"><Calendar className="h-4 w-4 mr-1 flex-shrink-0" /> 登録日: {formatRelativeTime(profile.created_at)}</span>
+        <div className="container mx-auto max-w-[1360px] px-4 py-8 sm:py-12">
+            <header className="mb-8 md:mb-8">
+                <div className="flex flex-col lg:flex-row items-center lg:items-start gap-6 lg:gap-10">
+                    <div className="relative flex-shrink-0">
+                        <Avatar className="h-80 w-80 sm:h-80 sm:w-80 rounded-lg border-2 border-border shadow-lg">
+                            <AvatarImage src={profile.profile_image_url ?? undefined} alt={profile.name} className="object-cover rounded-lg" />
+                            <AvatarFallback className="text-7xl rounded-lg bg-muted">
+                                {profile.name?.charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                        </Avatar>
                     </div>
 
-                    {/* 経験業界・企業タイプ */}
-                    {(profile.experienced_industries && profile.experienced_industries.length > 0 ||
-                      profile.experienced_company_types && profile.experienced_company_types.length > 0) && (
-                        <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground mt-3">
-                            {profile.experienced_industries && profile.experienced_industries.length > 0 && (
-                                <div className="flex items-start"><Briefcase className="h-4 w-4 mr-1 flex-shrink-0 mt-0.5" /> <span className="mr-1">経験業界:</span> <div>{renderLabelsFromArray(profile.experienced_industries, 'industries')}</div></div>
-                            )}
-                            {profile.experienced_company_types && profile.experienced_company_types.length > 0 && (
-                                <div className="flex items-start"><Building className="h-4 w-4 mr-1 flex-shrink-0 mt-0.5" /> <span className="mr-1">経験企業タイプ:</span> <div>{renderLabelsFromArray(profile.experienced_company_types, 'company_types')}</div></div>
-                            )}
+                    <div className="flex-1 w-full text-center lg:text-left">
+                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-2">
+                            <div className="lg:flex-grow">
+                                <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight text-foreground">{profile.name}</h1>
+                                <div className="lg:flex lg:justify-between lg:items-center w-full mt-5">
+                                <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-x-5 gap-y-2 text-base text-muted-foreground flex-wrap">
+                                    {profile.location && (
+                                        <span className="flex items-center">
+                                            <MapPin className="h-5 w-5 mr-2 flex-shrink-0" />
+                                            {profile.location}
+                                        </span>
+                                    )}
+                                    {profile.current_company_name && (
+                                        <span className="flex items-center">
+                                            <Building className="h-5 w-5 mr-2 flex-shrink-0" />
+                                            {profile.current_company_name}
+                                            {profile.current_company_url && (
+                                                <a href={profile.current_company_url} target="_blank" rel="noopener noreferrer" className="ml-1.5 flex items-center hover:text-primary transition-colors">
+                                                    <LinkIcon className="h-4 w-4" />
+                                                </a>
+                                            )}
+                                        </span>
+                                    )}
+                                    <span className="flex items-center">
+                                        <Calendar className="h-5 w-5 mr-2 flex-shrink-0" />
+                                        登録: {formatRelativeTime(profile.created_at)}
+                                    </span>
+                                </div>
+                                <div className="flex flex-col sm:flex-row gap-3 mt-4 lg:mt-0 w-full sm:w-auto lg:w-auto lg:flex-shrink-0 justify-center lg:justify-end">
+                                {isOwner && (
+                                    <Button variant="outline" size="default" className="w-full sm:w-auto" asChild>
+                                        <Link to="/profile/edit">
+                                            <Settings className="h-4 w-4 mr-2" /> プロフィール編集
+                                        </Link>
+                                    </Button>
+                                )}
+                                {!isOwner && isLoggedIn && profile.is_following !== undefined && (
+                                    profile.is_following ? (
+                                        <Button
+                                            variant="outline" size="default"
+                                            className="w-full sm:w-auto"
+                                            onClick={() => unfollowMutation.mutate()}
+                                            disabled={unfollowMutation.isPending || followMutation.isPending}
+                                        >
+                                            {unfollowMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserCheck className="mr-2 h-4 w-4" />}
+                                            フォロー中
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            size="default"
+                                            className="w-full sm:w-auto"
+                                            onClick={() => followMutation.mutate()}
+                                            disabled={followMutation.isPending || unfollowMutation.isPending}
+                                        >
+                                            {followMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserPlus className="mr-2 h-4 w-4" />}
+                                            フォローする
+                                        </Button>
+                                    )
+                                )}
+                                {!isLoggedIn && !isOwner && (
+                                    <Button disabled size="default" className="w-full sm:w-auto">
+                                       <UserPlus className="mr-2 h-4 w-4" /> フォロー (ログイン)
+                                    </Button>
+                                )}
+                            </div></div>
+                                {profile.headline && <p className="text-xl sm:text-2xl text-muted-foreground mt-2 sm:mt-2.5 mx-auto lg:mx-0">{profile.headline}</p>}
+
+                                <div className="mt-5 border-t border-border pt-1">
+                                    {renderLabelsFromArray(profile.experienced_industries, 'industries', Briefcase, '経験業界')}
+                                    {renderLabelsFromArray(profile.experienced_company_types, 'company_types', Building, '経験企業タイプ')}
+                                </div>
+                                {renderSocialLinks()}
+                            </div>
+
                         </div>
-                    )}
-
-                    {/* ★ ソーシャルリンク表示関数を呼び出し */}
-                    {renderSocialLinks()}
+                    </div>
                 </div>
 
-                {/* アクションボタン (編集/フォロー/アンフォロー) */}
-                <div className="flex gap-2 mt-4 w-full md:w-auto md:mt-0 md:flex-col lg:flex-row flex-shrink-0">
-                    {isOwner && (
-                        <Button variant="outline" className="w-full md:w-auto" asChild>
-                            <Link to="/profile/edit">
-                                <Edit className="h-4 w-4 mr-2" /> プロフィール編集
-                            </Link>
-                        </Button>
-                    )}
-                    {!isOwner && isLoggedIn && profile.is_following !== undefined && (
-                        profile.is_following ? (
-                            <Button
-                                variant="outline"
-                                className="w-full md:w-auto"
-                                onClick={() => unfollowMutation.mutate()}
-                                disabled={unfollowMutation.isPending || followMutation.isPending}
-                            >
-                                {unfollowMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserCheck className="mr-2 h-4 w-4" />}
-                                フォロー中
-                            </Button>
-                        ) : (
-                            <Button
-                                className="w-full md:w-auto"
-                                onClick={() => followMutation.mutate()}
-                                disabled={followMutation.isPending || unfollowMutation.isPending}
-                            >
-                                {followMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <UserPlus className="mr-2 h-4 w-4" />}
-                                フォローする
-                            </Button>
-                        )
-                    )}
-                    {!isLoggedIn && !isOwner && (
-                        <Button disabled className="w-full md:w-auto">
-                           <UserPlus className="mr-2 h-4 w-4" /> フォローする (ログインが必要です)
-                        </Button>
-                    )}
-                </div>
-            </div>
+                {(profile.followings_count !== undefined || profile.followers_count !== undefined || profile.posts_count !== undefined) && (
+                    <div className="flex flex-wrap justify-center lg:justify-start gap-x-8 gap-y-3 mt-8 pt-8 border-t border-border">
+                        {[
+                            { count: profile.followings_count, label: 'フォロー中', link: `/users/${userId}/following` },
+                            { count: profile.followers_count, label: 'フォロワー', link: `/users/${userId}/followers` },
+                            { count: profile.posts_count, label: '投稿' }
+                        ].map(item => (
+                            item.count !== undefined && (
+                                item.link ? (
+                                    <Link key={item.label} to={item.link} className="text-center hover:opacity-80 transition-opacity">
+                                        <div className="text-2xl sm:text-3xl font-bold text-foreground">{item.count}</div>
+                                        <div className="text-sm sm:text-base text-muted-foreground">{item.label}</div>
+                                    </Link>
+                                ) : (
+                                    <div key={item.label} className="text-center">
+                                        <div className="text-2xl sm:text-3xl font-bold text-foreground">{item.count}</div>
+                                        <div className="text-sm sm:text-base text-muted-foreground">{item.label}</div>
+                                    </div>
+                                )
+                            )
+                        ))}
+                    </div>
+                )}
+            </header>
 
-            {/* --- フォロー/フォロワー数/投稿数 --- */}
-            {(profile.followings_count !== undefined || profile.followers_count !== undefined || profile.posts_count !== undefined) && (
-                <div className="flex flex-wrap gap-x-4 gap-y-1 mb-8 text-sm">
-                    {profile.followings_count !== undefined && (
-                         <Link to={`/users/${userId}/following`} className="hover:underline text-muted-foreground hover:text-primary">
-                             <span className="font-semibold text-foreground">{profile.followings_count}</span> フォロー中
-                         </Link>
-                    )}
-                    {profile.followers_count !== undefined && (
-                         <Link to={`/users/${userId}/followers`} className="hover:underline text-muted-foreground hover:text-primary">
-                             <span className="font-semibold text-foreground">{profile.followers_count}</span> フォロワー
-                         </Link>
-                    )}
-                    {profile.posts_count !== undefined && (
-                         <span className="text-muted-foreground">
-                             <span className="font-semibold text-foreground">{profile.posts_count}</span> 件の投稿
-                         </span>
-                     )}
-                 </div>
-             )}
-
-            {/* --- 詳細情報 (タブ形式) --- */}
             <Tabs defaultValue="introduction" className="w-full">
-                {/* タブリスト */}
-                <TabsList className="grid w-full grid-cols-3 sm:grid-cols-6 mb-4 overflow-x-auto sm:overflow-x-visible">
-                    <TabsTrigger value="introduction"><UserIcon className="h-4 w-4 mr-1 sm:hidden" aria-hidden="true" />概要</TabsTrigger>
-                    <TabsTrigger value="experience"><Briefcase className="h-4 w-4 mr-1 sm:hidden" aria-hidden="true" />職務経歴</TabsTrigger>
-                    <TabsTrigger value="education"><GraduationCap className="h-4 w-4 mr-1 sm:hidden" aria-hidden="true" />学歴</TabsTrigger>
-                    <TabsTrigger value="skills"><Lightbulb className="h-4 w-4 mr-1 sm:hidden" aria-hidden="true" />スキル</TabsTrigger>
-                    <TabsTrigger value="portfolio"><BookOpen className="h-4 w-4 mr-1 sm:hidden" aria-hidden="true" />ポートフォリオ</TabsTrigger>
-                    <TabsTrigger value="posts"><MessageSquare className="h-4 w-4 mr-1 sm:hidden" aria-hidden="true" />投稿</TabsTrigger>
+                <TabsList className="grid w-full h-full grid-cols-3 sm:grid-cols-4 md:grid-cols-6 mb-6 sm:mb-8 border-b rounded-none justify-start overflow-x-auto sm:overflow-visible pb-0">
+                    {[
+                        { value: "introduction", label: "概要", icon: UserIcon },
+                        { value: "experience", label: "職務経歴", icon: Briefcase },
+                        { value: "education", label: "学歴", icon: GraduationCap },
+                        { value: "skills", label: "スキル", icon: Lightbulb },
+                        { value: "portfolio", label: "ポートフォリオ", icon: BookOpen },
+                        { value: "posts", label: "投稿", icon: MessageSquare }
+                    ].map(tab => (
+                        <TabsTrigger
+                            key={tab.value}
+                            value={tab.value}
+                            className="data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:shadow-none border-b-2 border-transparent rounded-none px-3 sm:px-4 py-2.5 text-sm sm:text-base whitespace-nowrap hover:bg-muted/50 transition-colors"
+                        >
+                            <tab.icon className="h-4 w-4 mr-2 hidden sm:inline-flex" />
+                            {tab.label}
+                        </TabsTrigger>
+                    ))}
                 </TabsList>
 
-                {/* --- 各タブのコンテンツ --- */}
-                {/* 概要タブ */}
                 <TabsContent value="introduction">
-                    <Card>
-                        <CardHeader><CardTitle>概要・自己紹介</CardTitle></CardHeader>
-                        <CardContent className="prose dark:prose-invert max-w-none whitespace-pre-wrap">
+                    <Card className="shadow-sm">
+                        <CardHeader><CardTitle className="text-xl sm:text-2xl">概要・自己紹介</CardTitle></CardHeader>
+                        <CardContent className="prose prose-sm sm:prose-base dark:prose-invert max-w-none whitespace-pre-wrap leading-relaxed">
                              {profile.introduction || <p className="text-muted-foreground italic">自己紹介はまだ登録されていません。</p>}
                         </CardContent>
                     </Card>
                 </TabsContent>
 
-                {/* 職務経歴タブ */}
                 <TabsContent value="experience">
-                    <Card>
-                        <CardHeader><CardTitle>職務経歴</CardTitle></CardHeader>
+                    <Card className="shadow-sm">
+                        <CardHeader><CardTitle className="text-xl sm:text-2xl">職務経歴</CardTitle></CardHeader>
                         <CardContent>
                             {profile.experiences && profile.experiences.length > 0 ? (
-                                <ul className="space-y-6">
+                                <div className="space-y-8">
                                     {profile.experiences.map(exp => (
-                                        <li key={exp.id} className="border-l-2 pl-6 border-border relative">
-                                            <div className="absolute w-3 h-3 bg-primary rounded-full -left-[7px] top-1 border-2 border-background"></div>
-                                            <p className="font-semibold text-base sm:text-lg">{exp.position} <span className="font-normal text-muted-foreground">@</span> {exp.company_name}</p>
-                                            <div className="text-xs sm:text-sm text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                                                <span className="flex items-center"><Calendar className="inline h-3 w-3 mr-1" />{exp.start_date} ～ {exp.end_date ?? '現在'}</span>
-                                                {exp.industry_label && <span className="flex items-center"><Briefcase className="inline h-3 w-3 mr-1" />{exp.industry_label}</span>}
-                                                {exp.company_size_label && <span className="flex items-center"><Building className="inline h-3 w-3 mr-1" />{exp.company_size_label}</span>}
+                                        <div key={exp.id} className="relative pl-8 before:absolute before:inset-y-0 before:left-3 before:w-0.5 before:bg-border">
+                                            <div className="absolute w-3 h-3 bg-primary rounded-full left-[7.5px] top-1.5 border-2 border-background"></div>
+                                            <p className="font-semibold text-md sm:text-lg text-foreground">{exp.position}</p>
+                                            <p className="text-sm sm:text-base text-muted-foreground">{exp.company_name}</p>
+                                            <div className="text-xs sm:text-sm text-muted-foreground/80 mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                                                <span className="flex items-center"><Calendar className="inline h-3.5 w-3.5 mr-1" />{exp.start_date} ～ {exp.end_date ?? '現在'}</span>
+                                                {exp.industry_label && <span className="flex items-center"><Briefcase className="inline h-3.5 w-3.5 mr-1" />{exp.industry_label}</span>}
+                                                {exp.company_size_label && <span className="flex items-center"><Building className="inline h-3.5 w-3.5 mr-1" />{exp.company_size_label}</span>}
                                             </div>
-                                            {exp.description && <p className="mt-2 text-sm whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none">{exp.description}</p>}
-                                        </li>
+                                            {exp.description && <CardDescription className="mt-2 text-sm whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none leading-relaxed">{exp.description}</CardDescription>}
+                                        </div>
                                     ))}
-                                </ul>
+                                </div>
                             ) : (
                                 <p className="text-muted-foreground italic">職務経歴はまだ登録されていません。</p>
                             )}
@@ -409,22 +414,22 @@ function UserProfilePage() {
                     </Card>
                 </TabsContent>
 
-                {/* 学歴タブ */}
                 <TabsContent value="education">
-                     <Card>
-                        <CardHeader><CardTitle>学歴</CardTitle></CardHeader>
+                     <Card className="shadow-sm">
+                        <CardHeader><CardTitle className="text-xl sm:text-2xl">学歴</CardTitle></CardHeader>
                         <CardContent>
                              {profile.educations && profile.educations.length > 0 ? (
-                                <ul className="space-y-4">
+                                <div className="space-y-6">
                                     {profile.educations.map(edu => (
-                                        <li key={edu.id} className="border-b pb-4 last:border-b-0 last:pb-0">
-                                            <p className="font-semibold">{edu.school_name}</p>
-                                            {edu.major && <p className="text-sm text-muted-foreground">{edu.major}</p>}
-                                            <p className="text-sm text-muted-foreground"><Calendar className="inline h-3 w-3 mr-1" />{edu.start_date} ～ {edu.end_date ?? '卒業'}</p>
-                                            {edu.description && <p className="mt-1 text-sm whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none">{edu.description}</p>}
-                                        </li>
+                                        <div key={edu.id} className="relative pl-8 before:absolute before:inset-y-0 before:left-3 before:w-0.5 before:bg-border">
+                                            <div className="absolute w-3 h-3 bg-primary rounded-full left-[7.5px] top-1.5 border-2 border-background"></div>
+                                            <p className="font-semibold text-md sm:text-lg text-foreground">{edu.school_name}</p>
+                                            {edu.major && <p className="text-sm sm:text-base text-muted-foreground">{edu.major}</p>}
+                                            <p className="text-xs sm:text-sm text-muted-foreground/80 mt-1"><Calendar className="inline h-3.5 w-3.5 mr-1" />{edu.start_date} ～ {edu.end_date ?? '卒業'}</p>
+                                            {edu.description && <CardDescription className="mt-2 text-sm whitespace-pre-wrap prose prose-sm dark:prose-invert max-w-none leading-relaxed">{edu.description}</CardDescription>}
+                                        </div>
                                     ))}
-                                </ul>
+                                </div>
                             ) : (
                                 <p className="text-muted-foreground italic">学歴はまだ登録されていません。</p>
                             )}
@@ -432,27 +437,29 @@ function UserProfilePage() {
                     </Card>
                 </TabsContent>
 
-                 {/* スキルタブ */}
                  <TabsContent value="skills">
-                     <Card>
-                         <CardHeader><CardTitle>スキル</CardTitle></CardHeader>
-                         <CardContent className="space-y-4">
-                             {Object.keys(groupedSkills).length > 0 ? (
-                                 Object.entries(groupedSkills).map(([type, skills]) => (
+                     <Card className="shadow-sm">
+                         <CardHeader><CardTitle className="text-xl sm:text-2xl">スキル</CardTitle></CardHeader>
+                         <CardContent className="space-y-6">
+                             {/* ★★★ groupedSkills のチェックと Object.entries の修正箇所 ★★★ */}
+                             {profile?.skills && profile.skills.length > 0 && Object.keys(groupedSkills).length > 0 ? (
+                                 Object.entries(groupedSkills).map(([type, skillsArray]: [string, UserSkill[]]) => (
                                      <div key={type}>
-                                         <h3 className="text-md font-semibold mb-2 text-muted-foreground">{metadata?.skill_types[type] || type}</h3>
-                                         <div className="flex flex-wrap gap-2">
-                                             {skills.map(skill => (
-                                                 <Badge key={skill.id} variant="secondary" className="px-3 py-1 text-sm">
+                                         <h3 className="text-lg font-semibold mb-3 text-foreground border-b pb-1.5">
+                                             {metadata?.skill_types[type] || type}
+                                         </h3>
+                                         <div className="flex flex-wrap gap-2.5">
+                                             {skillsArray.map(skill => (
+                                                 <Badge key={skill.id} variant="outline" className="px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors">
                                                      {skill.name}
-                                                     {skill.user_details?.level && (
-                                                          <span className="ml-1.5 text-xs opacity-75 flex items-center">
-                                                              <Star className="h-3 w-3 mr-0.5 fill-current text-yellow-500"/>
-                                                              {metadata?.skill_levels[skill.user_details.level] || skill.user_details.level}
+                                                     {skill.user_details?.level_label && (
+                                                          <span className="ml-2 text-xs opacity-80 flex items-center">
+                                                              <Star className="h-3.5 w-3.5 mr-1 fill-yellow-400 text-yellow-500"/>
+                                                              {skill.user_details.level_label}
                                                           </span>
                                                      )}
                                                       {skill.user_details?.years_of_experience !== undefined && skill.user_details.years_of_experience !== null && (
-                                                          <span className="ml-1.5 text-xs opacity-75">({skill.user_details.years_of_experience}年)</span>
+                                                          <span className="ml-2 text-xs opacity-80">({skill.user_details.years_of_experience}年)</span>
                                                       )}
                                                  </Badge>
                                              ))}
@@ -466,26 +473,27 @@ function UserProfilePage() {
                      </Card>
                  </TabsContent>
 
-                {/* ポートフォリオタブ */}
                 <TabsContent value="portfolio">
-                    <Card>
-                        <CardHeader><CardTitle>ポートフォリオ</CardTitle></CardHeader>
+                    <Card className="shadow-sm">
+                        <CardHeader><CardTitle className="text-xl sm:text-2xl">ポートフォリオ</CardTitle></CardHeader>
                         <CardContent>
                              {profile.portfolio_items && profile.portfolio_items.length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6">
                                     {profile.portfolio_items.map(item => (
-                                        <Card key={item.id} className="overflow-hidden flex flex-col">
-                                            <CardHeader className="pb-2">
-                                                <CardTitle className="text-base">{item.title}</CardTitle>
+                                        <Card key={item.id} className="overflow-hidden flex flex-col border hover:shadow-lg transition-shadow">
+                                            <CardHeader className="pb-2 pt-4">
+                                                <CardTitle className="text-lg font-semibold">{item.title}</CardTitle>
                                                  {item.url && (
-                                                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center break-all mt-1">
-                                                        <LinkIcon className="h-3 w-3 mr-1 flex-shrink-0"/><span>{item.url}</span> <ExternalLink className="h-3 w-3 ml-1 flex-shrink-0 opacity-70" />
+                                                    <a href={item.url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center break-all mt-1 group">
+                                                        <LinkIcon className="h-4 w-4 mr-1.5 flex-shrink-0 group-hover:scale-110 transition-transform"/>
+                                                        <span className="truncate">{item.url}</span>
+                                                        <ExternalLink className="h-3.5 w-3.5 ml-1.5 flex-shrink-0 opacity-70 group-hover:opacity-100 transition-opacity" />
                                                     </a>
                                                  )}
                                             </CardHeader>
                                             {item.description && (
-                                                <CardContent className="flex-grow">
-                                                    <p className="text-sm prose prose-sm dark:prose-invert max-w-none">{item.description}</p>
+                                                <CardContent className="flex-grow pt-0 pb-4">
+                                                    <p className="text-sm text-muted-foreground prose prose-sm dark:prose-invert max-w-none line-clamp-4 leading-relaxed">{item.description}</p>
                                                 </CardContent>
                                             )}
                                         </Card>
@@ -498,20 +506,25 @@ function UserProfilePage() {
                     </Card>
                 </TabsContent>
 
-                {/* 投稿タブ */}
                 <TabsContent value="posts">
-                     <h2 className="text-xl font-semibold mb-4">{profile.name}さんの投稿</h2>
-                    <PostList
-                        postsData={postsData}
-                        isLoading={isLoadingPosts && !isFetchingPosts}
-                        isFetching={isFetchingPosts}
-                        isError={isErrorPosts}
-                        error={errorPosts}
-                        setPage={setPostPage}
-                        currentUser={loggedInUser ?? undefined}
-                        onLikeToggleSuccess={handleLikeToggleSuccess}
-                        onLikeToggleError={handleLikeToggleError}
-                    />
+                    <div className="border rounded-lg shadow-sm bg-card">
+                        <CardHeader>
+                            <CardTitle className="text-xl sm:text-2xl">{profile.name}さんの投稿</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0 sm:p-2 md:p-4">
+                            <PostList
+                                postsData={postsData}
+                                isLoading={isLoadingPosts && !isFetchingPosts}
+                                isFetching={isFetchingPosts}
+                                isError={isErrorPosts}
+                                error={errorPosts}
+                                setPage={setPostPage}
+                                currentUser={loggedInUser ?? undefined}
+                                onLikeToggleSuccess={handleLikeToggleSuccess}
+                                onLikeToggleError={handleLikeToggleError}
+                            />
+                        </CardContent>
+                    </div>
                  </TabsContent>
             </Tabs>
         </div>
