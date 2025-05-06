@@ -9,13 +9,13 @@ import {
 } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 // ★ アイコン整理: Search, ChevronsUpDown は不要に
-import { Loader2, Terminal, Plus, Edit, Trash2, Briefcase, Calendar, Building, GraduationCap, Lightbulb, X, Check } from 'lucide-react';
+import { Loader2, Terminal, Plus, Edit, Trash2, Briefcase, Calendar, Building, GraduationCap, Lightbulb, X, Check, Star } from 'lucide-react';
 import useAuthStore from '@/stores/authStore';
 import { Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 // ★ SkillMaster 型をインポート
-import { UserProfile, Experience, Education, UserSkill, Skill as SkillMaster } from '@/types/user';
+import { UserProfile, Experience, Education, UserSkill } from '@/types/user';
 import { BasicInfoForm, ProfileFormData } from '@/components/forms/BasicInfoForm';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
@@ -34,12 +34,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { SkillItem } from '@/components/profile/SkillItem';
-// ★ SkillCombobox の代わりに SkillAsyncSelect をインポート
+import { SkillDialog } from '@/components/dialogs/SkillDialog';
+import { SkillFormData } from '@/components/forms/SkillForm'; // SkillFormData インポート
 // import { SkillCombobox } from '@/components/profile/SkillCombobox';
 import { SkillAsyncSelect } from '@/components/profile/SkillAsyncSelect'; // react-select を使うコンポーネント
 import { Label } from "@/components/ui/label"; // Label をインポート
 // ★ react-select の型をインポート
 import { InputActionMeta } from 'react-select';
+import { Badge } from "@/components/ui/badge";
 
 // --- API 関数 ---
 const fetchMyProfile = async (): Promise<UserProfile> => {
@@ -130,6 +132,11 @@ function ProfileEditPage() {
     const [editingEducation, setEditingEducation] = useState<Education | null>(null);
     const [isDeleteEducationDialogOpen, setIsDeleteEducationDialogOpen] = useState(false);
     const [deletingEducationId, setDeletingEducationId] = useState<number | null>(null);
+    // ★ スキル関連の状態を追加
+    const [isSkillDialogOpen, setIsSkillDialogOpen] = useState(false);
+    const [isDeleteSkillDialogOpen, setIsDeleteSkillDialogOpen] = useState(false);
+    const [editingSkill, setEditingSkill] = useState<UserSkill | null>(null);
+    const [deletingSkillId, setDeletingSkillId] = useState<number | null>(null);
     // ★ スキル編集用 State　現在のユーザースキルリスト (編集用)
     const [managedSkills, setManagedSkills] = useState<UserSkill[]>([]);
     // ★ スキル検索の入力値を管理する State を追加
@@ -318,20 +325,18 @@ function ProfileEditPage() {
     >({
         mutationFn: updateMySkills,
         onSuccess: (updatedSkills) => {
-            // フロントエンドの状態をサーバーからの最新データで更新
+            // ★ 成功したらフロントエンドの状態も更新
             setManagedSkills(updatedSkills);
-            // 必要であれば myProfile キャッシュも更新 (より厳密には更新された UserResource で更新)
-            queryClient.setQueryData<UserProfile>(['myProfile'], (oldData) => {
-                if (!oldData) return oldData;
-                return { ...oldData, skills: updatedSkills };
-            });
-             // ユーザー表示ページのキャッシュも更新
-             if (user?.id) {
-                 queryClient.setQueryData<UserProfile>(['user', user.id.toString()], (oldData) => {
-                    if (!oldData) return oldData;
-                    return { ...oldData, skills: updatedSkills };
-                 });
+            // キャッシュも更新
+            queryClient.setQueryData<UserProfile>(['myProfile'], (oldData) => oldData ? { ...oldData, skills: updatedSkills } : oldData);
+            if (user?.id) {
+                 queryClient.setQueryData<UserProfile>(['user', user.id.toString()], (oldData) => oldData ? { ...oldData, skills: updatedSkills } : oldData);
              }
+            // ★ ダイアログを閉じる処理を追加
+            setIsSkillDialogOpen(false);
+            setIsDeleteSkillDialogOpen(false); // 削除の場合も閉じる
+            setEditingSkill(null); // 編集状態を解除
+            setDeletingSkillId(null); // 削除状態を解除
             toast({ title: "成功", description: "スキル情報が更新されました。" });
         },
         onError: (error) => {
@@ -384,82 +389,99 @@ function ProfileEditPage() {
             deleteEducationMutation.mutate(deletingEducationId);
         }
     };
-    // ★ スキル追加処理 (Combobox で選択された時)
-    const handleAddSkill = (selectedSkill: SkillMaster) => {
-        // 重複チェック
-        if (managedSkills.some(s => s.id === selectedSkill.id)) {
-            toast({ title: "情報", description: "このスキルは既に追加されています。", variant: "default" });
-            return;
-        }
-        // 新しい UserSkill オブジェクトを作成 (初期値)
-        const newUserSkill: UserSkill = {
-            id: selectedSkill.id,
-            name: selectedSkill.name,
-            type: selectedSkill.type,
-            type_label: metadata?.skill_types[selectedSkill.type] || selectedSkill.type,
-            category: selectedSkill.category || null,
-            user_details: { // 初期値
-                level: null,
-                level_label: null,
-                years_of_experience: null,
-                description: null,
-            }
-        };
-        setManagedSkills(prev => [...prev, newUserSkill]);
-        // ★ 選択後に入力値 State をクリア
-        setSkillInputValue('');
-    };
-
-    // ★ スキル削除処理
-    const handleRemoveSkill = (skillId: number) => {
-        setManagedSkills(prev => prev.filter(s => s.id !== skillId));
-    };
 
     // ★ スキル入力変更ハンドラ
-    const handleSkillInputChange = (newValue: string, actionMeta: InputActionMeta) => {
-        // actionMeta.action が 'input-change' の時だけ state を更新
-        // 'menu-close', 'input-blur' など他のイベントでは更新しない
+    const handleSkillInputChange = (newValue: string, actionMeta: any) => {
         if (actionMeta.action === 'input-change') {
             setSkillInputValue(newValue);
         }
-         // 'set-value' は onChange で選択された時に発火することがあるので、
-         // ここでクリアすると選択直後にクリアされてしまう可能性があるため注意
     };
 
-    // ★ スキルの詳細情報 (level 等) 更新処理
-    const handleUpdateSkillDetail = (
-        skillId: number,
-        field: 'level' | 'years_of_experience' | 'description',
-        value: number | string | null
-    ) => {
-        setManagedSkills(prev => prev.map(skill => {
-            if (skill.id === skillId) {
-                // user_details が null の可能性に対処
-                const currentUserDetails = skill.user_details ?? { level: null, level_label: null, years_of_experience: null, description: null };
-                const updatedUserDetails = {
-                    ...currentUserDetails,
-                    [field]: value,
-                    // level が更新されたら level_label も更新
-                    level_label: field === 'level' && value !== null && typeof value === 'number'
-                                ? metadata?.skill_levels[value] || String(value)
-                                : currentUserDetails.level_label
-                };
-                return { ...skill, user_details: updatedUserDetails };
-            }
-            return skill;
-        }));
+    // ★ スキル追加ボタンハンドラ
+    const handleAddNewSkill = () => {
+        setEditingSkill(null); // 新規モード
+        setSkillInputValue(''); // 検索入力クリア
+        setIsSkillDialogOpen(true);
     };
 
-    // ★ スキル情報保存ボタンの処理
-    const handleSaveChanges = () => {
-        // API に送信する形式に整形
-        const dataToSend = managedSkills.map(skill => ({
-            skill_id: skill.id,
-            level: skill.user_details?.level ?? null,
-            years_of_experience: skill.user_details?.years_of_experience ?? null,
-            description: skill.user_details?.description ?? null,
-        }));
-        updateSkillsMutation.mutate(dataToSend);
+    // ★ スキル編集ボタンハンドラ
+    const handleEditSkill = (skill: UserSkill) => {
+        setEditingSkill(skill); // 編集対象を設定
+        setSkillInputValue(''); // 検索入力クリア
+        setIsSkillDialogOpen(true);
+    };
+
+    // ★ スキル削除ボタンハンドラ
+    const handleDeleteSkillClick = (id: number) => {
+        setDeletingSkillId(id);
+        setIsDeleteSkillDialogOpen(true);
+    };
+
+    // ★ スキル削除確定ハンドラ
+     const confirmDeleteSkill = () => {
+        if (deletingSkillId === null) return;
+        // managedSkills から対象を除いたリストを作成
+        const updatedSkillList = managedSkills
+            .filter(skill => skill.id !== deletingSkillId)
+            .map(skill => ({ // API 送信形式に変換
+                skill_id: skill.id,
+                level: skill.user_details?.level ?? null,
+                years_of_experience: skill.user_details?.years_of_experience ?? null,
+                description: skill.user_details?.description ?? null,
+            }));
+        // 一括更新 API を呼び出し
+        updateSkillsMutation.mutate(updatedSkillList);
+    };
+
+    // ★ スキル保存ハンドラ (ダイアログから呼び出される)
+    const handleSaveSkill = (formData: SkillFormData) => {
+        if (!formData.skill) { // スキルが選択されていない場合 (基本ないはず)
+            toast({ title: "エラー", description: "スキルを選択してください。", variant: "destructive" });
+            return;
+        }
+
+        const isEditing = editingSkill !== null; // 編集モードか判定
+
+        // API 送信用のデータを作成
+        const skillDataToSave = {
+            skill_id: formData.skill.id,
+            level: formData.level ?? null,
+            years_of_experience: formData.years_of_experience ?? null,
+            description: formData.description ?? null,
+        };
+
+        let updatedSkillList;
+        if (isEditing) {
+            // 編集: managedSkills 内の該当スキルを更新
+            updatedSkillList = managedSkills.map(skill =>
+                skill.id === editingSkill.id ? skillDataToSave : {
+                    skill_id: skill.id,
+                    level: skill.user_details?.level ?? null,
+                    years_of_experience: skill.user_details?.years_of_experience ?? null,
+                    description: skill.user_details?.description ?? null,
+                }
+            );
+        } else {
+            // 新規追加: managedSkills に新しいスキルを追加
+             // 重複チェック (念のため)
+             if (managedSkills.some(s => s.id === skillDataToSave.skill_id)) {
+                 toast({ title: "情報", description: "このスキルは既に追加されています。", variant: "default" });
+                 setIsSkillDialogOpen(false); // ダイアログ閉じる
+                 return;
+             }
+            updatedSkillList = [
+                ...managedSkills.map(skill => ({
+                    skill_id: skill.id,
+                    level: skill.user_details?.level ?? null,
+                    years_of_experience: skill.user_details?.years_of_experience ?? null,
+                    description: skill.user_details?.description ?? null,
+                })),
+                skillDataToSave // 新しいスキルを追加
+            ];
+        }
+
+        // スキル一括更新 API を呼び出し
+        updateSkillsMutation.mutate(updatedSkillList);
     };
 
     // --- ローディング・エラーハンドリング ---
@@ -612,31 +634,20 @@ function ProfileEditPage() {
              {/* --- スキルセクション 更新 --- */}
              <Card className="mt-6">
                 <CardHeader>
+                    <div>
                     <CardTitle className="flex items-center"><Lightbulb className="h-5 w-5 mr-2 text-primary"/>スキル</CardTitle>
                     <CardDescription>あなたの専門知識や技術、語学力などを登録してください。</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    {/* --- スキル追加 UI --- */}
-                    <div className="space-y-2">
-                        <Label htmlFor="skill-async-select">スキルを追加</Label>
-                        {/* ★ SkillAsyncSelect を使用 */}
-                        <SkillAsyncSelect
-                            onSelectSkill={handleAddSkill}
-                            excludeSkillIds={managedSkills.map(s => s.id)}
-                            // ★ inputValue と onInputChange を渡す
-                            inputValue={skillInputValue}
-                            onInputChange={handleSkillInputChange}
-                            placeholder="スキル名で検索..."
-                        />
-                        <CardDescription>
-                            追加したいスキルを検索して選択してください。
-                        </CardDescription>
                     </div>
-
-                    {/* --- 登録済みスキル一覧 --- */}
+                    {/* ★ 新規追加ボタン (ダイアログを開く) */}
+                     <Button variant="outline" size="sm" onClick={handleAddNewSkill}>
+                         <Plus className="h-4 w-4 mr-2" />
+                         新規追加
+                     </Button>
+                </CardHeader>
+                <CardContent>
+                    {/* ★ 登録済みスキル一覧のみ表示 */}
                     {managedSkills.length > 0 ? (
                         <div className="space-y-4">
-                            {/* ★ タイプ別にグループ化して表示 (UserProfilePage と同様のロジック) */}
                             {Object.entries(
                                 managedSkills.reduce((acc, skill) => {
                                     const typeKey = skill.type || 'その他';
@@ -651,29 +662,42 @@ function ProfileEditPage() {
                                     </h3>
                                     <div className="space-y-4">
                                         {skillsOfType.map(skill => (
-                                            // ★ SkillItem コンポーネント (後で作成)
-                                            <SkillItem
-                                                key={skill.id}
-                                                skill={skill}
-                                                metadata={metadata} // レベル選択肢用
-                                                onUpdate={handleUpdateSkillDetail}
-                                                onRemove={handleRemoveSkill}
-                                            />
+                                            // ★ SkillItem は表示のみで編集機能は不要に (編集はダイアログから)
+                                            <div key={skill.id} className="border rounded-md p-4 relative bg-card/50">
+                                                 {/* 削除・編集ボタン */}
+                                                <div className="absolute top-2 right-2 flex space-x-1">
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEditSkill(skill)}>
+                                                        <Edit className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => handleDeleteSkillClick(skill.id)}>
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                                 {/* スキル名 */}
+                                                 <Badge variant="secondary" className="text-base font-semibold px-3 py-1 mb-2">
+                                                    {skill.name}
+                                                 </Badge>
+                                                  {/* レベル・経験年数・説明表示 */}
+                                                 <div className="space-y-1 text-sm text-muted-foreground">
+                                                      {skill.user_details?.level_label && (
+                                                         <div className="flex items-center"><Star className="h-3.5 w-3.5 mr-1.5 text-yellow-500 fill-current"/> {skill.user_details.level_label}</div>
+                                                      )}
+                                                      {skill.user_details?.years_of_experience !== null && skill.user_details?.years_of_experience !== undefined && (
+                                                         <div className="flex items-center"><Calendar className="h-3.5 w-3.5 mr-1.5"/> {skill.user_details.years_of_experience} 年</div>
+                                                      )}
+                                                      {skill.user_details?.description && (
+                                                         <p className="pt-1 text-xs whitespace-pre-wrap">{skill.user_details.description}</p>
+                                                      )}
+                                                 </div>
+                                            </div>
                                         ))}
                                     </div>
                                 </div>
                             ))}
-                             {/* --- 保存ボタン --- */}
-                             <div className="flex justify-end pt-4">
-                                <Button onClick={handleSaveChanges} disabled={updateSkillsMutation.isPending}>
-                                    {updateSkillsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                    スキル情報を保存
-                                </Button>
-                            </div>
                         </div>
                     ) : (
                         <p className="text-muted-foreground italic text-center py-4">
-                            スキルはまだ登録されていません。上の検索ボックスから追加してください。
+                            スキルはまだ登録されていません。「新規追加」ボタンから登録できます。
                         </p>
                     )}
                 </CardContent>
@@ -707,6 +731,21 @@ function ProfileEditPage() {
                 createMutation={createEducationMutation}
                 updateMutation={updateEducationMutation}
             />
+
+            {/* ★ SkillDialog をレンダリング */}
+            {metadata && (
+                 <SkillDialog
+                    isOpen={isSkillDialogOpen}
+                    setIsOpen={setIsSkillDialogOpen}
+                    editingSkill={editingSkill}
+                    metadata={metadata}
+                    onSave={handleSaveSkill} // 保存ハンドラ
+                    isSaving={updateSkillsMutation.isPending} // 保存中フラグ
+                    currentSkillIds={managedSkills.map(s => s.id)} // 既存スキルID
+                    skillInputValue={skillInputValue} // 検索入力値
+                    onSkillInputChange={handleSkillInputChange} // 入力変更ハンドラ
+                 />
+            )}
 
             {/* ★ 削除確認 AlertDialog をレンダリング */}
             <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -748,6 +787,29 @@ function ProfileEditPage() {
                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
                         {deleteEducationMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        削除する
+                    </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* ★ スキル削除確認 AlertDialog */}
+             <AlertDialog open={isDeleteSkillDialogOpen} onOpenChange={setIsDeleteSkillDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                    <AlertDialogTitle>削除確認</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        このスキルをリストから削除してもよろしいですか？
+                    </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setDeletingSkillId(null)}>キャンセル</AlertDialogCancel>
+                    <AlertDialogAction
+                         onClick={confirmDeleteSkill} // 変更
+                         disabled={updateSkillsMutation.isPending} // スキル更新Mutationを見る
+                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                        {updateSkillsMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         削除する
                     </AlertDialogAction>
                     </AlertDialogFooter>
