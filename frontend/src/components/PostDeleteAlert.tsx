@@ -1,7 +1,6 @@
 // src/components/PostDeleteAlert.tsx
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom'; // 削除後のリダイレクト用
 
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -12,28 +11,32 @@ import apiClient from '@/lib/apiClient';
 interface PostDeleteAlertProps {
   postId: number; // 削除対象の投稿 ID
   onDeleted?: () => void; // 削除成功時のコールバック (任意)
+  triggerButtonText?: string; // トリガーボタンのテキスト (任意)
+  triggerButtonVariant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link" | null | undefined; // トリガーボタンのバリアント (任意)
 }
 
-export function PostDeleteAlert({ postId, onDeleted }: PostDeleteAlertProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function PostDeleteAlert({
+  postId,
+  onDeleted,
+  triggerButtonText = "削除", // デフォルトのトリガーボタンテキスト
+  triggerButtonVariant = "destructive", // デフォルトのトリガーボタンバリアント
+}: PostDeleteAlertProps) {
+  const [isOpen, setIsOpen] = useState(false); // ★ AlertDialog の open/onOpenChange に使用 ★
   const [apiError, setApiError] = useState<string | null>(null);
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   const mutation = useMutation({
     mutationFn: () => {
-      // ★ DELETE リクエストで削除 API を呼び出す ★
       return apiClient.delete(`/api/posts/${postId}`);
     },
     onSuccess: () => {
       console.log("投稿削除成功:", postId);
       setApiError(null);
-      setIsOpen(false);
-      // ★ 投稿一覧と詳細のキャッシュを無効化 ★
+      setIsOpen(false); // ★ 成功時にダイアログを閉じる ★
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['post', postId.toString()] });
       alert("投稿を削除しました！");
-      onDeleted?.(); // コールバック実行 (例: 詳細ページから一覧へ戻るなど)
+      onDeleted?.();
       // navigate('/'); // 必要ならここでリダイレクト
     },
     onError: (error: any) => {
@@ -43,7 +46,6 @@ export function PostDeleteAlert({ postId, onDeleted }: PostDeleteAlertProps) {
        } else {
          setApiError("削除中にエラーが発生しました。");
        }
-       // エラー時はダイアログを閉じない方が良いかもしれない
     },
   });
 
@@ -52,6 +54,12 @@ export function PostDeleteAlert({ postId, onDeleted }: PostDeleteAlertProps) {
   };
 
   return (
+    // ★ AlertDialog で全体をラップし、open と onOpenChange を設定 ★
+    <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+      {/* ★ ダイアログを開くためのトリガー ★ */}
+      <AlertDialogTrigger asChild>
+        <Button variant={triggerButtonVariant}>{triggerButtonText}</Button>
+      </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>本当に削除しますか？</AlertDialogTitle>
@@ -61,12 +69,13 @@ export function PostDeleteAlert({ postId, onDeleted }: PostDeleteAlertProps) {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
+          {/* AlertDialogCancel はクリックされると onOpenChange(false) をトリガーします */}
           <AlertDialogCancel disabled={mutation.isPending}>キャンセル</AlertDialogCancel>
-          {/* 削除実行ボタン */}
           <AlertDialogAction onClick={handleDelete} disabled={mutation.isPending} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
             {mutation.isPending ? "削除中..." : "削除する"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
+    </AlertDialog>
   );
 }

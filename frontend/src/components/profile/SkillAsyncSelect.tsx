@@ -1,9 +1,9 @@
 // frontend/src/components/profile/SkillAsyncSelect.tsx
-import React, { useState } from 'react';
+import React from 'react';
 import AsyncSelect from 'react-select/async';
 import { Skill as SkillMaster } from '@/types/user';
 import apiClient from '@/lib/apiClient';
-import { StylesConfig, InputActionMeta } from 'react-select'; // ★ InputActionMeta をインポート
+import { StylesConfig } from 'react-select'; // ★ InputActionMeta をインポート
 
 interface SkillOption {
     value: number; // skill.id
@@ -121,7 +121,6 @@ interface SkillAsyncSelectProps {
     excludeSkillIds?: number[];
     // ★ inputValue と onInputChange を Props に追加
     inputValue: string;
-    onInputChange: (newValue: string, actionMeta: InputActionMeta) => void;
 }
 
 export function SkillAsyncSelect({
@@ -132,7 +131,6 @@ export function SkillAsyncSelect({
     excludeSkillIds = [],
     // ★ Props を受け取る
     inputValue,
-    onInputChange,
 }: SkillAsyncSelectProps) {
 
     const promiseOptions = (inputVal: string): Promise<SkillOption[]> => // 引数名変更
@@ -159,9 +157,6 @@ export function SkillAsyncSelect({
             loadingMessage={loadingMessage}
             styles={customStyles}
             inputValue={inputValue}
-            onInputChange={onInputChange}
-            // ★ value プロパティを追加し、常に null に設定
-            value={null}
             inputId="skill-async-select"
         />
     );

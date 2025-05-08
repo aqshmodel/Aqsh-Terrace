@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { commentSchema, CommentFormValues } from "@/lib/validators/commentValidators";
 import apiClient from "@/lib/apiClient";
 import { Loader2 } from "lucide-react";
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 
 interface CommentFormProps {
   postId: number;

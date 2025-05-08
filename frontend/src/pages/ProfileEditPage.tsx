@@ -1,5 +1,5 @@
 // frontend/src/pages/ProfileEditPage.tsx
-import React, { useState, useEffect } from 'react'; // ★ useCallback, useRef は不要に
+import { useState, useEffect } from 'react'; // ★ useCallback, useRef は不要に
 import { Link } from 'react-router-dom';
 import {
     Card,
@@ -10,13 +10,13 @@ import {
 } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 // ★ アイコン整理: Search, ChevronsUpDown は不要に
-import { Loader2, Terminal, Plus, Edit, Trash2, Briefcase, Calendar, Building, GraduationCap, Lightbulb, X, Check, Star, BookOpen, Link as LinkIcon, ExternalLink, User } from 'lucide-react';
+import { Loader2, Terminal, Plus, Edit, Trash2, Briefcase, Calendar, Building, Lightbulb, Star, BookOpen, Link as LinkIcon, ExternalLink } from 'lucide-react';
 import useAuthStore from '@/stores/authStore';
 import { Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 // ★ SkillMaster 型をインポート
-import { UserProfile, Experience, Education, UserSkill, Skill as SkillMaster, PortfolioItem } from '@/types/user';
+import { UserProfile, Experience, Education, UserSkill, PortfolioItem } from '@/types/user';
 import { BasicInfoForm, ProfileFormData } from '@/components/forms/BasicInfoForm';
 import { useToast } from "@/hooks/use-toast";
 import { Button } from '@/components/ui/button';
@@ -34,14 +34,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { SkillItem } from '@/components/profile/SkillItem';
 import { SkillDialog } from '@/components/dialogs/SkillDialog';
 import { SkillFormData } from '@/components/forms/SkillForm'; // SkillFormData インポート
-// import { SkillCombobox } from '@/components/profile/SkillCombobox';
-import { SkillAsyncSelect } from '@/components/profile/SkillAsyncSelect'; // react-select を使うコンポーネント
-import { Label } from "@/components/ui/label"; // Label をインポート
-// ★ react-select の型をインポート
-import { InputActionMeta } from 'react-select';
 import { Badge } from "@/components/ui/badge";
 import { PortfolioDialog } from '@/components/dialogs/PortfolioDialog';
 import { PortfolioFormData } from '@/components/forms/PortfolioForm';
@@ -195,7 +189,6 @@ function ProfileEditPage() {
     });
     // ★ データ取得後にタイトルを設定
     useDocumentTitle(currentProfile?.name ? `Aqsh Terrace | プロフィール編集 ${currentProfile.name}さん` : 'Aqsh Terrace | ユーザープロフィール');
-
     // ★ 初期スキルデータを managedSkills にセット (currentProfile が変更されたら)
     useEffect(() => {
         if (currentProfile?.skills) {
@@ -550,12 +543,6 @@ function ProfileEditPage() {
         }
     };
 
-    // ★ スキル入力変更ハンドラ
-    const handleSkillInputChange = (newValue: string, actionMeta: any) => {
-        if (actionMeta.action === 'input-change') {
-            setSkillInputValue(newValue);
-        }
-    };
 
     // ★ スキル追加ボタンハンドラ
     const handleAddNewSkill = () => {
@@ -703,7 +690,13 @@ function ProfileEditPage() {
             </div>
         );
     }
-
+if (currentProfile) { // currentProfile がロードされてからログ出力
+    console.log(
+        '[ProfileEditPage] About to render AvatarUpload. updateAvatarMutation.isPending:', updateAvatarMutation.isPending,
+        'deleteAvatarMutation.isPending:', deleteAvatarMutation.isPending,
+        'currentProfile.profile_image_url:', currentProfile.profile_image_url
+    );
+}
     // --- レンダリング ---
     return (
         <div className="px-4 py-8">
@@ -717,7 +710,7 @@ function ProfileEditPage() {
                 </CardHeader>
                 <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
                      {/* アバターアップロード (左カラム) */}
-                    <div className="col-span-1 flex justify-center md:justify-start pl-5 pt-5">
+                    <div className="col-span-1 flex h-52 w-52 sm:h-52 sm:w-52 justify-center md:justify-start pl-5 pt-5">
                         <AvatarUpload
                             currentImageUrl={currentProfile?.profile_image_url ?? null}
                             onUpload={handleAvatarUpload}
@@ -730,7 +723,7 @@ function ProfileEditPage() {
                     <div className='col-span-1 md:flex md:justify-end'>
                         <Link to={`/users/${user.id}`}><Button>プロフィール編集終了</Button></Link>
                     </div>
-                    <div className='col-span-2'>
+                    <div className='col-span-2 pt-20'>
                          <BasicInfoForm
                             initialData={currentProfile}
                             metadata={metadata}
@@ -1001,7 +994,6 @@ function ProfileEditPage() {
                     isSaving={updateSkillsMutation.isPending} // 保存中フラグ
                     currentSkillIds={managedSkills.map(s => s.id)} // 既存スキルID
                     skillInputValue={skillInputValue} // 検索入力値
-                    onSkillInputChange={handleSkillInputChange} // 入力変更ハンドラ
                  />
             )}
 

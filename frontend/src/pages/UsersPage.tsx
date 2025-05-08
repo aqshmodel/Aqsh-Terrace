@@ -5,8 +5,7 @@ import apiClient from '@/lib/apiClient';
 import { Link } from 'react-router-dom'; // Link をインポート
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"; // Avatar コンポーネントをインポート
-import { Terminal, Loader2, MapPin, Briefcase, Users, User, MessageSquare } from "lucide-react"; // アイコンを追加
+import { Terminal, Loader2, MapPin, Users, User, MessageSquare } from "lucide-react"; // アイコンを追加
 import axios, { AxiosError } from 'axios';
 import { formatRelativeTime } from '@/lib/utils'; // 日付フォーマット関数
 import { SimpleUserInfo } from '@/types/user'; // 新しい型定義をインポート

@@ -1,5 +1,5 @@
  // frontend/src/App.tsx
- import { Routes, Route, Link } from 'react-router-dom';
+ import { Routes, Route } from 'react-router-dom';
  import Layout from '@/layouts/Layout';
  import HomePage from '@/pages/HomePage';
  import LoginPage from '@/pages/LoginPage';

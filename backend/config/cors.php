@@ -1,5 +1,5 @@
 <?php
-
+//backend/config/cors.php
 return [
     'paths' => [
         'api/*', // APIルート全体
@@ -11,12 +11,7 @@ return [
 
     'allowed_methods' => ['*'], // すべてのメソッドを許可 (または必要なものだけ GET, POST, PUT, DELETE など)
 
-    'allowed_origins' => [
-        // フロントエンドの開発サーバーのURLを追加（ポート番号も含む）
-        'http://localhost:5174',
-        // 必要であれば本番環境のフロントエンドURLも追加
-        // 'https://your-frontend-domain.com',
-    ],
+    'allowed_origins' => [env('FRONTEND_URL', 'http://localhost:3000'), 'http://aqsh.boyfriend.jp','https://terrace.aqsh.co.jp'],
 
     // ワイルドカードを使用する場合 (セキュリティに注意)
     // 'allowed_origins' => ['*'],

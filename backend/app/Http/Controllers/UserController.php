@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Http\Resources\UserResource; // UserResource をインポート
 use Illuminate\Support\Facades\Log;    // Log ファサードをインポート
 use App\Models\Education;             // Education モデルをインポート
+use App\Http\Resources\PostResource; // ★ PostResource をインポート ★
+use Illuminate\Support\Facades\Auth;  // ★ Auth ファサードをインポート ★
 
 class UserController extends Controller
 {
@@ -90,27 +92,46 @@ class UserController extends Controller
     public function posts(Request $request, User $user)
     {
         try {
-            // ユーザーに紐づく投稿を、投稿者情報と共に新しい順でページネーション取得
-            $posts = $user->posts()
-                         ->with('user:id,name') // N+1 問題を防ぐために投稿者情報もロード
-                         ->latest() // 新しい順
-                         ->paginate($request->query('per_page', 15)); // 1ページあたりの件数 (デフォルト15件)
+            $loggedInUserId = Auth::id(); // 現在ログインしているユーザーのIDを取得
+            $perPage = $request->query('per_page', 15);
 
-            // PostResourceCollection を使うとより整形されたレスポンスになる
-            // return new PostResourceCollection($posts);
-            return response()->json($posts);
+            // ユーザーに紐づく投稿を取得するクエリビルダ
+            $postsQuery = $user->posts() // $user->posts リレーションを使用
+                             ->with([
+                                 'user:id,name', // 投稿者情報
+                             ])
+                             ->withCount('likes') // ★ いいね数をカウント (likes_count) ★
+                             // ★ 認証ユーザーがいいねしたかどうかのフラグを追加 (liked_by_user) ★
+                             ->withExists(['likes as liked_by_user' => function ($query) use ($loggedInUserId) {
+                                 if ($loggedInUserId) {
+                                     $query->where('user_id', $loggedInUserId);
+                                 } else {
+                                     $query->whereRaw('1 = 0'); // 未認証時は false
+                                 }
+                             }])
+                             ->latest(); // 新しい順
+
+            // ページネーションを実行
+            $posts = $postsQuery->paginate($perPage);
+
+            // ★★★ PostResource を使ってレスポンスを整形することを推奨 ★★★
+            // これにより、PostResource で定義された liked_by_user や likes_count が
+            // レスポンスに含まれるようになります。
+            return PostResource::collection($posts);
+
+            // もし PostResource を使わずに直接 JSON で返したい場合は、
+            // 上記の withCount と withExists で追加された属性が
+            // $posts の各アイテムに含まれているので、それでも動作するはずです。
+            // return response()->json($posts); // このままでも liked_by_user と likes_count は含まれる
 
         } catch (\Exception $e) {
              // エラーログ
              Log::error('Error occurred in UserController@posts for user ID: ' . $user->id, [
                 'message' => $e->getMessage(),
-                'exception' => $e
+                'exception' => $e // 例外オブジェクト全体を渡すと詳細が見れる
             ]);
              // エラーレスポンス
              return response()->json(['message' => 'Failed to retrieve user posts.'], 500);
         }
     }
-
-    // 他のメソッド (index など) が必要であればここに追加
-    // public function index(Request $request) { ... }
 }

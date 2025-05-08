@@ -1,5 +1,4 @@
 // frontend/src/components/forms/BasicInfoForm.tsx
-import React from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -297,7 +296,7 @@ export function BasicInfoForm({ initialData, metadata, onSubmit, isPending }: Ba
                 <FormField
                     control={form.control}
                     name="experienced_industries"
-                    render={({ field }) => (
+                    render={({ }) => (
                         <FormItem className="space-y-3 rounded-md border p-4">
                             <FormLabel className="text-sm font-medium">主な経験業界 (複数選択可, 最大5つ)</FormLabel>
                              <FormControl>
@@ -343,7 +342,7 @@ export function BasicInfoForm({ initialData, metadata, onSubmit, isPending }: Ba
                 <FormField
                     control={form.control}
                     name="experienced_company_types"
-                    render={({ field }) => (
+                    render={({ }) => (
                          <FormItem className="space-y-3 rounded-md border p-4">
                             <FormLabel className="text-sm font-medium">主な経験企業タイプ (複数選択可, 最大3つ)</FormLabel>
                             <FormControl>

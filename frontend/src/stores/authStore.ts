@@ -1,76 +1,132 @@
+// frontend/src/stores/authStore.ts
 import { create } from 'zustand';
+import apiClient, { fetchCsrfToken } from '../lib/apiClient'; // apiClientとfetchCsrfTokenをインポート
+import echo, { updateEchoAuthHeaders } from '../lib/echo';   // echoとupdateEchoAuthHeadersをインポート
+
+// VITE_API_URL を直接使用
+const API_URL = import.meta.env.VITE_API_URL as string;
 
 export type UserData = {
   id: number;
   name: string;
-  email?: string; // emailはオプショナルに戻す
-  profile_image_url?: string | null; // ★ 追加
-  // 他の必要なプロパティを追加
+  email?: string;
+  profile_image_url?: string | null;
 };
 
 interface AuthState {
   isLoggedIn: boolean;
   user: UserData | null;
-  isLoading: boolean; // ★ isLoading プロパティを追加 (boolean型)
-  login: (userData: UserData) => void;
-  logout: () => void;
-  setLoading: (loading: boolean) => void; // ★ ローディング状態を更新するためのアクションを追加
-  checkAuthStatus: () => Promise<void>; // ★ 認証状態を確認する非同期アクションを追加 (実装は後述)
+  isLoading: boolean;
+  login: (userData: UserData, _fromCheckAuth?: boolean) => Promise<void>;
+  logout: () => Promise<void>;
+  setLoading: (loading: boolean) => void;
+  checkAuthStatus: () => Promise<void>;
 }
 
 const useAuthStore = create<AuthState>((set, get) => ({
   isLoggedIn: false,
   user: null,
-  isLoading: true, // ★ 初期状態は true (アプリ起動時に認証確認を行うため)
-  login: (userData) => set({ isLoggedIn: true, user: userData, isLoading: false }), // ★ login 時に isLoading を false に設定
-  logout: () => { // ★ logout 時も isLoading を false に設定
-    // ログアウト API 呼び出しなどをここで行う場合は非同期にする
-    // 例: await apiClient.post('/api/logout');
-    set({ isLoggedIn: false, user: null, isLoading: false });
+  isLoading: true,
+  login: async (userData, _fromCheckAuth = false) => {
+    if (import.meta.env.DEV) {
+        console.log('[AuthStore] login called. UserData:', userData);
+    }
+    try {
+        await fetchCsrfToken();
+        updateEchoAuthHeaders();
+        set({ isLoggedIn: true, user: userData, isLoading: false });
+        if (echo && echo.connector && !echo.connector.pusher?.connection.socket_id) {
+            if (import.meta.env.DEV) console.log('[AuthStore] Echo seems disconnected, attempting to connect.');
+            echo.connect();
+        } else if (import.meta.env.DEV && echo && echo.connector && echo.connector.pusher?.connection.socket_id) {
+            console.log('[AuthStore] Echo already connected. Socket ID:', echo.socketId());
+        }
+    } catch (error) {
+        console.error('[AuthStore] Error during login post-processing (CSRF/Echo update):', error);
+        set({ isLoggedIn: true, user: userData, isLoading: false });
+    }
   },
-  setLoading: (loading) => set({ isLoading: loading }), // ★ ローディング状態をセットするアクション
-
-  // ★ 認証状態を確認する非同期アクションの実装例 ★
-  checkAuthStatus: async () => {
-    if (get().isLoggedIn) { // すでにログイン状態なら何もしない (または user 情報を再取得)
-        set({ isLoading: false }); // ローディング完了
+  logout: async () => {
+    if (import.meta.env.DEV) console.log('[AuthStore] logout action initiated.');
+    const state = get(); // isLoading をチェックするために state を取得
+    if (state.isLoading) { // ★ 既に処理中なら何もしない（二重実行防止）
+        if (import.meta.env.DEV) console.log('[AuthStore] Logout already in progress, skipping.');
         return;
     }
-    set({ isLoading: true }); // 確認開始
+    set({ isLoading: true }); // ★ ローディング開始
     try {
-        // ここで /api/user などのエンドポイントを叩いて認証状態を確認
-        // apiClient.ts をインポートする必要がある
-        // import apiClient from '@/lib/apiClient';
-        // const response = await apiClient.get<{ data: UserData }>('/api/user');
-        // set({ isLoggedIn: true, user: response.data.data, isLoading: false });
+      // ログアウトAPI呼び出し
+      await apiClient.post(
+        `${API_URL}/logout`,
+        {},
+        { headers: { 'Content-Type': 'application/json' } } // Content-Type指定 (apiClientデフォルト設定なら不要かも)
+      );
 
-        // --- ↓↓↓ ダミー実装 (実際の API 呼び出しに置き換えてください) ---
-        // Cookie などに認証情報があるかチェックする想定
-        console.log("Checking auth status...");
-        await new Promise(resolve => setTimeout(resolve, 500)); // 擬似的な待機
-        // 例: ローカルストレージやCookieを見て判断 (これは一例で推奨ではない)
-        const maybeAuthenticated = localStorage.getItem('dummy_auth') === 'true'; // ダミー
-        if (maybeAuthenticated) {
-             // 認証成功とみなし、ダミーユーザー情報をセット
-             // 本来は /api/user から取得した情報を使う
-            set({ isLoggedIn: true, user: { id: 1, name: 'テストユーザー(復元)' }, isLoading: false });
-            console.log("Auth status checked: Logged in (dummy)");
-        } else {
-             set({ isLoggedIn: false, user: null, isLoading: false });
-             console.log("Auth status checked: Not logged in");
+      if (echo) {
+        echo.disconnect();
+        if (import.meta.env.DEV) console.log('[AuthStore] Echo disconnected on logout.');
+      }
+      // ログアウト成功後はフロントエンドの状態を更新
+      set({ isLoggedIn: false, user: null, isLoading: false });
+      // ★ CSRFトークン取得やヘッダー更新はログアウト成功後には不要かもしれない
+      // ★ （次のログイン時に取得するため）
+      // await fetchCsrfToken();
+      // updateEchoAuthHeaders();
+      if (import.meta.env.DEV) console.log('[AuthStore] Logout successful, state updated.');
+
+    } catch (error: any) {
+      console.error('[AuthStore] Logout API call failed:', error);
+      if (error.config && error.config.headers) {
+        console.error('[AuthStore] Headers sent with failed logout request:', error.config.headers);
+      }
+      if (error.response && error.response.data) {
+        console.error('[AuthStore] Error response data from logout API:', error.response.data);
+      }
+      // API呼び出しが失敗しても、フロントエンド側ではログアウト状態にする
+      if (echo) echo.disconnect();
+      set({ isLoggedIn: false, user: null, isLoading: false }); // ★ isLoadingをfalseに戻す
+      if (import.meta.env.DEV) console.log('[AuthStore] Logout processed on frontend despite API error.');
+      // ★ エラーを再スローしない（UI側でハンドリングしないなら）
+    }
+  },
+  setLoading: (loading) => set({ isLoading: loading }),
+  checkAuthStatus: async () => {
+    if (get().isLoggedIn && get().user) {
+        if (import.meta.env.DEV) console.log('[AuthStore] checkAuthStatus: Already logged in with user:', get().user);
+        set({ isLoading: false });
+        try {
+            await fetchCsrfToken();
+            updateEchoAuthHeaders();
+        } catch (csrfError) {
+            console.error("[AuthStore] Failed to refresh CSRF token for already logged in user:", csrfError);
         }
-        // --- ↑↑↑ ダミー実装ここまで ---
+        return;
+    }
+    if (import.meta.env.DEV) console.log('[AuthStore] checkAuthStatus: Checking user authentication status...');
+    set({ isLoading: true });
+    try {
+      // fetchCsrfToken は apiClient.ts 内で appUrl を使うので、ここでは事前呼び出し不要な場合もあるが、念のため。
+      // ただし、この fetchCsrfToken は login メソッド内でも呼ばれるので、重複を避けるか、冪等性を担保する。
+      // ここでは、まずCSRFを取得し、次にユーザー情報を取得する流れを明確にする。
+      await fetchCsrfToken();
+      updateEchoAuthHeaders(); // apiClient を使う前にヘッダーを更新
 
-    } catch (error) {
-      console.error("Auth check failed:", error);
-      set({ isLoggedIn: false, user: null, isLoading: false }); // エラー時もローディング完了
+      // 完全なURLを指定
+      const response = await apiClient.get<UserData>(`${API_URL}/user`);
+
+      if (import.meta.env.DEV) console.log('[AuthStore] checkAuthStatus: User data fetched:', response.data);
+      await get().login(response.data, true);
+    } catch (error: any) {
+      if (import.meta.env.DEV) {
+          if (error.response && (error.response.status === 401 || error.response.status === 419)) {
+              console.log('[AuthStore] checkAuthStatus: User not authenticated (401/419). URL:', error.config?.url);
+          } else {
+              console.error('[AuthStore] checkAuthStatus: Auth check failed:', error);
+          }
+      }
+      set({ isLoggedIn: false, user: null, isLoading: false });
     }
   },
 }));
-
-// --- アプリケーション初期化時に認証状態を確認 ---
-// この処理は main.tsx や App.tsx のトップレベルに近い場所で一度だけ実行するのが一般的
-// useAuthStore.getState().checkAuthStatus();
-// console.log("Initial auth check triggered."); // 実行確認用ログ
 
 export default useAuthStore;

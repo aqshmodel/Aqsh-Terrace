@@ -110,7 +110,7 @@ export function SkillCombobox({
                                handleSelect(selected); // 共通ハンドラを呼び出す
                            }}
                            // ★ onMouseDown: マウスクリック (プレス) で選択された場合の処理
-                           onMouseDown={(e) => {
+                           onMouseDown={() => {
                                // デフォルトのフォーカス移動や他のイベント発火を抑制する (場合によっては必要)
                                // e.preventDefault();
                                handleSelect(skill); // 直接 skill オブジェクトを渡して共通処理を呼ぶ

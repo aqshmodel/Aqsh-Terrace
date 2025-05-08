@@ -1,5 +1,4 @@
 // frontend/src/components/dialogs/PortfolioDialog.tsx
-import React from 'react';
 import {
   Dialog,
   DialogContent,

@@ -24,6 +24,7 @@ use App\Http\Controllers\EducationController;
 use App\Http\Controllers\PortfolioItemController;
 use App\Http\Controllers\SkillController;
 use App\Http\Controllers\MetadataController;
+use Illuminate\Support\Facades\Log; // Logファサードを使用
 // Resources ★ 補足: UserResource はコントローラー内で使用するため、ここでは不要 ★
 // use App\Http\Resources\UserResource;
 
@@ -44,6 +45,9 @@ Route::post('/register', [RegisterController::class, 'store'])->name('register')
 Route::post('/login', [LoginController::class, 'store'])->name('login'); // ルート名を付与
 // --- ユーザー一覧表示 ---
 Route::get('/users', [UserController::class, 'index'])->name('users.index');
+// ★★★ 投稿の一覧表示 (GET /api/posts) と個別表示 (GET /api/posts/{post}) を認証不要にする ★★★
+Route::get('/posts', [PostController::class, 'index'])->name('posts.index.public');
+Route::get('/posts/{post}', [PostController::class, 'show'])->name('posts.show.public');
 // ログアウトは認証が必要な group に移動
 // Route::post('/logout', [LogoutController::class, 'destroy'])->name('logout');
 
@@ -58,8 +62,13 @@ Route::middleware('auth:sanctum')->group(function () {
         return new \App\Http\Resources\UserResource($request->user());
     })->name('user.me'); // 自身の情報を取得するルート
 
-    // --- 投稿関連 (CRUD) ---
-    Route::apiResource('posts', PostController::class); // name: posts.index, posts.store, posts.show, posts.update, posts.destroy
+    // --- 投稿関連 (CRUD - index と show を除く) ---
+    // ★ apiResource から index と show を除外し、残りのメソッドに認証をかける ★
+    Route::apiResource('posts', PostController::class)->except(['index', 'show']);
+    // これにより以下のルートが認証必須になります:
+    // - POST /api/posts (store)
+    // - PUT/PATCH /api/posts/{post} (update)
+    // - DELETE /api/posts/{post} (destroy)
 
     // --- コメント関連 (投稿にネスト) ---
     // index: GET /posts/{post}/comments

@@ -1,11 +1,10 @@
 // frontend/src/components/NotificationDropdownContent.tsx
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery} from '@tanstack/react-query';
 import apiClient from '@/lib/apiClient';
 import type { AppNotification, PaginatedNotificationsResponse, CommentReceivedData, PostLikedData, UserFollowedData } from '@/types/notification';
 import { formatRelativeTime } from '@/lib/utils';
 import { Link } from 'react-router-dom';
 import { Loader2, MessageSquare, Heart, UserPlus, MailWarning } from 'lucide-react';
-import { Button } from './ui/button';
 import { ScrollArea } from "@/components/ui/scroll-area"; // ★ インポート ★
 import { DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu"; // ★ DropdownMenuLabel を追加 ★
 import { useState } from 'react'; // ★ useState をインポート ★
@@ -19,11 +18,10 @@ const fetchNotifications = async (page: number = 1): Promise<PaginatedNotificati
 };
 
 export default function NotificationDropdownContent() {
-    const queryClient = useQueryClient();
     // ★ useState を使用 ★
-    const [currentPage, setCurrentPage] = useState(1);
+    const [currentPage] = useState(1);
 
-    const { data: notificationData, isLoading, isError, error, isFetching } = useQuery<PaginatedNotificationsResponse, Error>({
+    const { data: notificationData, isLoading, isError } = useQuery<PaginatedNotificationsResponse, Error>({
         queryKey: ['notifications', 'list', currentPage],
         queryFn: () => fetchNotifications(currentPage),
         staleTime: 30000,

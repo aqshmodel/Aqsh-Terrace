@@ -2,12 +2,11 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import useDocumentTitle from '@/hooks/useDocumentTitle';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator"; // ★ インポートを修正
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
     Users, MessageSquareText, UserCircle, Share2, Lightbulb, Rocket, Cpu, Layers, Palette,
-    ThumbsUp, MessageCircle, Zap, Sparkles, ArrowRight, Mail, Github, Twitter, Check, Bell
+    ThumbsUp, MessageCircle, Zap, Sparkles, ArrowRight, Mail,Check, Bell
 } from 'lucide-react'; // アイコンを豊富に活用
 import useAuthStore from '@/stores/authStore'; // ★ useAuthStore をインポート
 

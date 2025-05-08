@@ -18,10 +18,10 @@ class DatabaseSeeder extends Seeder
         User::updateOrCreate( // ★ モデルに対して直接 updateOrCreate を呼び出す ★
             [
              'name' => '塚田 崇博',
-             'email' => 'tsukada-t@aqsh.co.jp',
+             'email' => 'aqsh.reprom@gmail.com',
              'password' => Hash::make('ttgl37tt'), // パスワードは 'password'
              // 必要なら他のプロフィール情報も指定
-             'headline' => 'Aqsh株式会社 代表取締役 | Web Developer | Laravel & React',
+             'headline' => 'Aqsh合同会社 代表社員 | Web Developer | Laravel & React',
              'location' => '岩手県八幡平市',
              'experienced_industries' => ['it_communication', 'web_service'],
         ]);

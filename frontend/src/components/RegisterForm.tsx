@@ -1,9 +1,7 @@
 // src/components/RegisterForm.tsx
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom"; // リダイレクト用にインポート
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +21,6 @@ import apiClient from "@/lib/apiClient";
 // useAuthStore はここでは直接使わないことが多い (登録後にログインページへ促すため)
 
 export function RegisterForm() {
-  const navigate = useNavigate(); // ページ遷移用フック
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {

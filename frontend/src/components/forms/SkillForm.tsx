@@ -1,5 +1,5 @@
 // frontend/src/components/forms/SkillForm.tsx
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -26,7 +25,6 @@ import {
 import { UserSkill, Skill as SkillMaster } from '@/types/user'; // 型
 import { Loader2, Star, CalendarDays } from 'lucide-react';
 import { SkillAsyncSelect } from '@/components/profile/SkillAsyncSelect'; // 作成済みの AsyncSelect
-import { Label } from '@/components/ui/label';
 
 // --- Zod スキーマ定義 ---
 // バックエンドの UpdateProfileSkillsRequest の要素に合わせる
@@ -57,7 +55,6 @@ interface SkillFormProps {
     currentSkillIds: number[];
     // ★ react-select 用の入力値とハンドラ
     skillInputValue: string;
-    onSkillInputChange: (newValue: string, actionMeta: any) => void; // actionMeta の型は react-select から
 }
 
 // --- フォームコンポーネント ---
@@ -69,7 +66,6 @@ export function SkillForm({
     isEditMode,
     currentSkillIds,
     skillInputValue,
-    onSkillInputChange,
 }: SkillFormProps) {
 
     const form = useForm<SkillFormData>({
@@ -160,7 +156,6 @@ export function SkillForm({
                                         // ★ 編集モードでない場合のみ除外リストを渡す
                                         excludeSkillIds={!isEditMode ? currentSkillIds : []}
                                         inputValue={skillInputValue}
-                                        onInputChange={onSkillInputChange}
                                         placeholder="スキル名で検索・選択..."
                                     />
                                 </FormControl>

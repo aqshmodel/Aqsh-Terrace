@@ -1,5 +1,4 @@
 // frontend/src/components/dialogs/SkillDialog.tsx
-import React from 'react';
 import {
   Dialog,
   DialogContent,
@@ -25,7 +24,6 @@ interface SkillDialogProps {
     // ★ 検索用 state とハンドラ
     currentSkillIds: number[];
     skillInputValue: string;
-    onSkillInputChange: (newValue: string, actionMeta: any) => void;
 }
 
 // --- ダイアログコンポーネント ---
@@ -38,7 +36,6 @@ export function SkillDialog({
     isSaving,
     currentSkillIds,
     skillInputValue,
-    onSkillInputChange,
 }: SkillDialogProps) {
 
     const isEditMode = !!editingSkill;
@@ -67,7 +64,6 @@ export function SkillDialog({
                     isEditMode={isEditMode} // 編集モードフラグを渡す
                     currentSkillIds={currentSkillIds} // 既存スキルIDリストを渡す
                     skillInputValue={skillInputValue} // 検索入力値を渡す
-                    onSkillInputChange={onSkillInputChange} // 入力変更ハンドラを渡す
                 />
             </DialogContent>
         </Dialog>

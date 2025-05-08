@@ -101,7 +101,7 @@ function PostDetailPage() {
       console.log(`Post ${postId} like status updated successfully.`);
       // toast.success(liked ? "いいねを取り消しました" : "いいねしました！");
     },
-    onError: (error: any, variables) => {
+    onError: (error: any) => {
       console.error("Like toggle error:", error);
       // toast.error(variables.liked ? "いいねの取り消しに失敗しました。" : "いいねに失敗しました。");
       // ★ エラー時はサーバーの状態に同期させる (キャッシュを再取得) ★

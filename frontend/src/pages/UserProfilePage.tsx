@@ -14,16 +14,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
-    ExternalLink, MapPin, Mail, Edit, Loader2, Github, Twitter, Linkedin, Facebook, Instagram,
+    ExternalLink, MapPin, Loader2, Github, Twitter, Linkedin, Facebook, Instagram,
     Building, GraduationCap, UserCheck, UserPlus, Briefcase, Lightbulb, BookOpen, Star,
-    Calendar, MessageSquare, Terminal, MoreHorizontal, User as UserIcon,
+    Calendar, MessageSquare, Terminal, User as UserIcon,
     Link as LinkIcon,
     Settings
 } from 'lucide-react';
 import { formatRelativeTime } from '@/lib/utils';
 import { PostList } from '@/components/PostList';
 import useAuthStore from '@/stores/authStore';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import useDocumentTitle from '@/hooks/useDocumentTitle';
 
 // --- API 関数 ---
@@ -130,18 +130,33 @@ function UserProfilePage() {
         }
     });
 
-    const handleLikeToggleSuccess = useCallback((postId: number, newLikedStatus: boolean, newLikesCount: number) => {
-        queryClient.setQueryData<PaginatedUserPostsResponse>(userPostsQueryKey, (oldData) => {
-            if (!oldData) return oldData;
-            const newData = oldData.data.map(post => {
-                if (post.id === postId) {
-                    return { ...post, liked_by_user: newLikedStatus, likes_count: newLikesCount };
-                }
-                return post;
-            });
-            return { ...oldData, data: newData };
+    // UserProfilePage.tsx
+
+const handleLikeToggleSuccess = useCallback((postId: number, newLikedStatus: boolean, newLikesCount: number) => {
+    queryClient.setQueryData<PaginatedUserPostsResponse>(userPostsQueryKey, (oldData): PaginatedUserPostsResponse | undefined => {
+        if (!oldData) {
+            return undefined;
+        }
+
+        const newDataArray = oldData.data.map(post => {
+            if (post.id === postId) {
+                return { ...post, liked_by_user: newLikedStatus, likes_count: newLikesCount };
+            }
+            return post;
         });
-    }, [queryClient, userPostsQueryKey]);
+
+        // トップレベルの links オブジェクトを新しい参照でコピー
+        const newTopLevelLinks = { ...oldData.links };
+
+        // meta オブジェクトを新しい参照でコピーし、その中の links 配列も新しい参照の配列にする
+        const newMeta = { ...oldData.meta, links: oldData.meta.links.map(link => ({ ...link })) };
+        return { ...oldData, data: newDataArray, links: newTopLevelLinks, meta: newMeta };
+    });
+
+    // ★★★ クエリを無効化して再フェッチを強制 ★★★
+    queryClient.invalidateQueries({ queryKey: userPostsQueryKey });
+
+}, [queryClient, userPostsQueryKey]);
 
     const handleLikeToggleError = useCallback((error: Error, postId: number) => {
         console.error(`[UserProfilePage] Received like error for post ${postId}:`, error);

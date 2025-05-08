@@ -90,7 +90,6 @@ class ProfileController extends Controller
         // 新しいアバターを保存 (例: public/avatars ディレクトリ)
         // ファイル名が衝突しないようにハッシュ名などを利用
         $path = $avatarFile->store('avatars', 'public'); // public ディスクの avatars フォルダに保存
-
         // DB に保存する URL を生成
         $url = Storage::disk('public')->url($path);
 

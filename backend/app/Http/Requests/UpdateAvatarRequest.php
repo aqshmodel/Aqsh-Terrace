@@ -1,5 +1,5 @@
 <?php
-
+//backend/app/Http/Requests/UpdateAvatarRequest.php
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
@@ -29,7 +29,7 @@ class UpdateAvatarRequest extends FormRequest
                 'required', // 必須
                 File::image() // 画像ファイルであること
                     ->max(2 * 1024) // 最大サイズ (例: 2MB)
-                    ->dimensions(Rule::dimensions()->maxWidth(2000)->maxHeight(2000)), // 最大解像度 (任意)
+                    ->dimensions(Rule::dimensions()->maxWidth(8000)->maxHeight(8000)), // 最大解像度 (任意)
                     // ->types(['jpeg', 'png', 'gif', 'webp']), // 許可する拡張子 (任意)
             ],
         ];
